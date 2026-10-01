@@ -1,0 +1,21 @@
+{
+  "name": "@collidor/struct",
+  "version": "0.1.0",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts",
+    "./bridges/axon": "./src/bridges/axon.ts",
+    "./bridges/zod": "./src/bridges/zod.ts",
+    "./bridges/jsonSchema": "./src/bridges/jsonSchema.ts"
+  },
+  "publish": {
+    "include": [
+      "src/**/*.ts",
+      "README.md",
+      "LICENSE"
+    ],
+    "exclude": [
+      "src/**/__tests__/**"
+    ]
+  }
+}
