@@ -125,4 +125,40 @@ describe('Primitive Schemas', () => {
       await expect(schema.parseAsync('invalid')).rejects.toThrow('Invalid token')
     })
   })
+
+  describe('Metadata Annotation', () => {
+    it('sets description via .description() and .describe() alias', () => {
+      const s1 = s.string().description('User email address')
+      expect(s1.descriptor.description).toBe('User email address')
+      expect(s1.descriptor.metadata?.description).toBe('User email address')
+
+      const s2 = s.string().trim().toLowerCase().min(3).max(20).describe('Account handle')
+      expect(s2.descriptor.description).toBe('Account handle')
+      expect(s2.descriptor.metadata?.description).toBe('Account handle')
+    })
+  })
+
+  describe('s.optional, s.nullable, s.nullish, s.unknown helper functions', () => {
+    it('wraps schemas with optionality, nullability, and unknown', () => {
+      const optStr = s.optional(s.string())
+      expect(optStr.parse(undefined)).toBeUndefined()
+      expect(optStr.parse('hello')).toBe('hello')
+
+      const optWithDefault = s.optional(s.string(), 'fallback')
+      expect(optWithDefault.parse(undefined)).toBe('fallback')
+
+      const nullNum = s.nullable(s.number())
+      expect(nullNum.parse(null)).toBeNull()
+      expect(nullNum.parse(42)).toBe(42)
+
+      const nullishBool = s.nullish(s.boolean())
+      expect(nullishBool.parse(null)).toBeNull()
+      expect(nullishBool.parse(undefined)).toBeUndefined()
+      expect(nullishBool.parse(true)).toBe(true)
+
+      const unk = s.unknown()
+      expect(unk.parse({ any: 'value' })).toEqual({ any: 'value' })
+    })
+  })
 })
+

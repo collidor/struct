@@ -1,2 +1,9 @@
+packages:
+  - '.'
+  - 'docs'
+
 allowBuilds:
   esbuild: true
+
+minimumReleaseAgeExclude:
+  - '@collidor/ui@0.1.0'

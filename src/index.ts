@@ -54,6 +54,8 @@ export {
   getStructTableName,
   typeDescriptorToSQLType,
   getStructColumnMappings,
+  type SQLDialect,
+  type GenerateDDLOptions,
 } from './schema/ddl'
 export { SQLiteMemoryDatabase, SQLiteEntityStoreAdapter } from './schema/sqliteAdapter'
 export type {
@@ -62,6 +64,7 @@ export type {
   EntityMetadata,
   EntityRecord,
   StructFieldMapping,
+  SQLType,
 } from './schema/storage'
 export {
   SchemaMigrationEngine,

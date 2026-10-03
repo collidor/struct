@@ -1,5 +1,16 @@
 import type { StructDescriptor, TypeDescriptor, TypeKind } from '../types/ast'
-import type { StructFieldMapping, FieldVisibility } from './storage'
+import type { StructFieldMapping, FieldVisibility, SQLType } from './storage'
+
+export type SQLDialect = 'sqlite' | 'postgres'
+
+export interface GenerateDDLOptions {
+  /** Optional custom table name (defaults to 'records' or derived from structName) */
+  tableName?: string
+  /** Target SQL dialect (defaults to 'sqlite') */
+  dialect?: SQLDialect
+  /** Whether to include SQLite entities table FOREIGN KEY reference (defaults to true for SQLite, false for Postgres) */
+  includeEntitiesForeignKey?: boolean
+}
 
 /**
  * Generates the base SQLite tables (entities tracking and universal edges).
@@ -35,28 +46,45 @@ const SQLITE_TYPE_MAP: Partial<Record<TypeKind, 'INTEGER' | 'REAL' | 'TEXT' | 'B
   number: 'REAL',
 }
 
+const POSTGRES_TYPE_MAP: Partial<Record<TypeKind, SQLType>> = {
+  integer: 'INTEGER',
+  bigint: 'BIGINT',
+  number: 'DOUBLE PRECISION',
+  boolean: 'BOOLEAN',
+  date: 'TIMESTAMPTZ',
+}
+
 /**
- * Maps a Struct AST descriptor kind to a SQLite storage data type.
+ * Maps a Struct AST descriptor kind to a SQL storage data type.
  */
 export function typeDescriptorToSQLType(
   descriptor: TypeDescriptor,
-): 'INTEGER' | 'REAL' | 'TEXT' | 'BLOB' {
+  dialect: SQLDialect = 'sqlite',
+): SQLType {
+  if (dialect === 'postgres') {
+    return POSTGRES_TYPE_MAP[descriptor.kind] ?? 'TEXT'
+  }
   return SQLITE_TYPE_MAP[descriptor.kind] ?? 'TEXT'
 }
 
 /**
  * Extracts normalized column field mappings from a StructDescriptor.
  */
-export function getStructColumnMappings(descriptor: StructDescriptor): StructFieldMapping[] {
+export function getStructColumnMappings(
+  descriptor: StructDescriptor,
+  dialect: SQLDialect = 'sqlite',
+): StructFieldMapping[] {
   const mappings: StructFieldMapping[] = []
 
   for (const [fieldName, fieldDesc] of Object.entries(descriptor.fields)) {
-    const sqlType = typeDescriptorToSQLType(fieldDesc)
+    const sqlType = typeDescriptorToSQLType(fieldDesc, dialect)
     const isNullable = Boolean(fieldDesc.nullable || fieldDesc.optional)
     let defaultValue = fieldDesc.default
 
-    if (fieldDesc.kind === 'boolean' && typeof defaultValue === 'boolean') {
-      defaultValue = defaultValue ? 1 : 0
+    if (dialect === 'sqlite') {
+      if (fieldDesc.kind === 'boolean' && typeof defaultValue === 'boolean') {
+        defaultValue = defaultValue ? 1 : 0
+      }
     }
 
     const visibility = (fieldDesc.metadata?.visibility as FieldVisibility) ?? 'PUBLIC'
@@ -81,9 +109,12 @@ export function getStructTableName(structName: string): string {
 }
 
 /**
- * Formats a single column definition for SQLite DDL.
+ * Formats a single column definition for SQL DDL.
  */
-export function formatColumnDefinition(col: StructFieldMapping): string {
+export function formatColumnDefinition(
+  col: StructFieldMapping,
+  dialect: SQLDialect = 'sqlite',
+): string {
   let def = `${col.name} ${col.sqlType}`
 
   if (!col.nullable) {
@@ -94,14 +125,20 @@ export function formatColumnDefinition(col: StructFieldMapping): string {
     if (typeof col.defaultValue === 'string') {
       def += ` DEFAULT '${col.defaultValue.replace(/'/g, "''")}'`
     } else if (typeof col.defaultValue === 'boolean') {
-      def += ` DEFAULT ${col.defaultValue ? 1 : 0}`
-    } else if (typeof col.defaultValue === 'number') {
-      def += ` DEFAULT ${col.defaultValue}`
+      if (dialect === 'postgres') {
+        def += ` DEFAULT ${col.defaultValue ? 'TRUE' : 'FALSE'}`
+      } else {
+        def += ` DEFAULT ${col.defaultValue ? 1 : 0}`
+      }
+    } else if (typeof col.defaultValue === 'number' || typeof col.defaultValue === 'bigint') {
+      def += ` DEFAULT ${col.defaultValue.toString()}`
     } else {
       def += ` DEFAULT '${JSON.stringify(col.defaultValue).replace(/'/g, "''")}'`
     }
   } else if (col.nullable) {
-    def += ' DEFAULT NULL'
+    if (dialect === 'sqlite') {
+      def += ' DEFAULT NULL'
+    }
   }
 
   return def
@@ -109,18 +146,64 @@ export function formatColumnDefinition(col: StructFieldMapping): string {
 
 /**
  * Generates dynamic DDL CREATE TABLE statements for a specific Struct definition.
+ *
+ * Supports both:
+ * - Low-level: `generateStructDDL('users', descriptor, options)`
+ * - High-level: `generateStructDDL(UserSchema, options)`
  */
-export function generateStructDDL(structName: string, descriptor: StructDescriptor): string {
-  const tableName = getStructTableName(structName)
-  const mappings = getStructColumnMappings(descriptor)
+export function generateStructDDL(
+  structName: string,
+  descriptor: StructDescriptor,
+  options?: GenerateDDLOptions,
+): string
+export function generateStructDDL(
+  schemaOrDescriptor: { descriptor: StructDescriptor } | StructDescriptor,
+  options?: GenerateDDLOptions,
+): string
+export function generateStructDDL(
+  structOrName: string | { descriptor: StructDescriptor } | StructDescriptor,
+  descriptorOrOptions?: StructDescriptor | GenerateDDLOptions,
+  options?: GenerateDDLOptions,
+): string {
+  let descriptor: StructDescriptor
+  let opts: GenerateDDLOptions = {}
+  let derivedTableName: string
+
+  if (typeof structOrName === 'string') {
+    derivedTableName = getStructTableName(structOrName)
+    descriptor = descriptorOrOptions as StructDescriptor
+    opts = options || {}
+  } else {
+    descriptor =
+      'descriptor' in (structOrName as object) && (structOrName as { descriptor: StructDescriptor }).descriptor
+        ? (structOrName as { descriptor: StructDescriptor }).descriptor
+        : (structOrName as StructDescriptor)
+    opts = (descriptorOrOptions as GenerateDDLOptions) || {}
+    derivedTableName =
+      opts.tableName ||
+      (typeof descriptor?.title === 'string' ? getStructTableName(descriptor.title) : 'records')
+  }
+
+  if (!descriptor || descriptor.kind !== 'struct' || !descriptor.fields) {
+    throw new Error('generateStructDDL requires a struct schema or StructDescriptor with fields')
+  }
+
+  const tableName = opts.tableName || derivedTableName
+  const dialect: SQLDialect = opts.dialect || 'sqlite'
+  const mappings = getStructColumnMappings(descriptor, dialect)
 
   const columnDefs: string[] = ['    id TEXT PRIMARY KEY']
 
   for (const col of mappings) {
-    columnDefs.push(`    ${formatColumnDefinition(col)}`)
+    columnDefs.push(`    ${formatColumnDefinition(col, dialect)}`)
   }
 
-  columnDefs.push('    FOREIGN KEY(id) REFERENCES entities(id) ON DELETE CASCADE')
+  const shouldIncludeFk =
+    opts.includeEntitiesForeignKey ?? (dialect === 'sqlite' && typeof structOrName === 'string')
+
+  if (shouldIncludeFk) {
+    columnDefs.push('    FOREIGN KEY(id) REFERENCES entities(id) ON DELETE CASCADE')
+  }
 
   return `CREATE TABLE IF NOT EXISTS ${tableName} (\n${columnDefs.join(',\n')}\n);`
 }

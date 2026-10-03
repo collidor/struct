@@ -44,4 +44,48 @@ describe('Dynamic SQLite DDL Generator', () => {
     expect(secretLore).toBeDefined()
     expect(secretLore?.visibility).toBe('HOST_ONLY')
   })
+
+  it('supports schema instance directly with custom tableName and SQLite dialect', () => {
+    const ArticleSchema = s.struct({
+      title: s.string(),
+      published: s.boolean().default(false),
+      rating: s.number().optional(),
+    })
+
+    const ddl = generateStructDDL(ArticleSchema, {
+      tableName: 'articles',
+      dialect: 'sqlite',
+    })
+
+    expect(ddl).toContain('CREATE TABLE IF NOT EXISTS articles')
+    expect(ddl).toContain('title TEXT NOT NULL')
+    expect(ddl).toContain('published INTEGER NOT NULL DEFAULT 0')
+    expect(ddl).toContain('rating REAL DEFAULT NULL')
+  })
+
+  it('supports PostgreSQL dialect with typed booleans and floating point', () => {
+    const ArticleSchema = s.struct({
+      title: s.string(),
+      views: s.integer().default(0),
+      published: s.boolean().default(true),
+      rating: s.number().optional(),
+      created_at: s.date().optional(),
+      points: s.bigint().default(100n),
+    })
+
+    const pgDDL = generateStructDDL(ArticleSchema, {
+      tableName: 'articles',
+      dialect: 'postgres',
+    })
+
+    expect(pgDDL).toContain('CREATE TABLE IF NOT EXISTS articles')
+    expect(pgDDL).toContain('title TEXT NOT NULL')
+    expect(pgDDL).toContain('views INTEGER NOT NULL DEFAULT 0')
+    expect(pgDDL).toContain('published BOOLEAN NOT NULL DEFAULT TRUE')
+    expect(pgDDL).toContain('rating DOUBLE PRECISION')
+    expect(pgDDL).toContain('created_at TIMESTAMPTZ')
+    expect(pgDDL).toContain('points BIGINT NOT NULL DEFAULT 100')
+    // Postgres dialect defaults to omitting SQLite-specific entities foreign key
+    expect(pgDDL).not.toContain('FOREIGN KEY(id) REFERENCES entities')
+  })
 })

@@ -44,7 +44,10 @@
   "license": "MIT",
   "scripts": {
     "build": "vite build",
-    "test": "vitest run"
+    "test": "vitest run",
+    "docs:dev": "pnpm --filter @collidor/struct-docs run dev",
+    "docs:build": "pnpm --filter @collidor/struct-docs run build",
+    "docs:preview": "pnpm --filter @collidor/struct-docs run preview"
   },
   "dependencies": {
     "zod": "^3.24.2"

@@ -45,6 +45,23 @@ export const s = {
   bigint: (descriptor?: Partial<BigIntDescriptor>): BigIntSchema => new BigIntSchema(descriptor),
   null: (descriptor?: Partial<NullDescriptor>): NullSchema => new NullSchema(descriptor),
   any: (descriptor?: Partial<AnyDescriptor>): AnySchema => new AnySchema(descriptor),
+  unknown: (descriptor?: Partial<AnyDescriptor>): AnySchema => new AnySchema(descriptor),
+
+  optional: <TInput, TOutput>(
+    schema: BaseSchema<TInput, TOutput>,
+    defaultValue?: TOutput | (() => TOutput),
+  ): BaseSchema<TInput | undefined, TOutput | undefined> => {
+    const opt = schema.optional()
+    return defaultValue !== undefined ? (opt.default(defaultValue) as any) : opt
+  },
+
+  nullable: <TInput, TOutput>(
+    schema: BaseSchema<TInput, TOutput>,
+  ): BaseSchema<TInput | null, TOutput | null> => schema.nullable(),
+
+  nullish: <TInput, TOutput>(
+    schema: BaseSchema<TInput, TOutput>,
+  ): BaseSchema<TInput | null | undefined, TOutput | null | undefined> => schema.nullish(),
 
   coerce: {
     string: (descriptor?: Partial<StringDescriptor>): StringSchema<unknown> =>

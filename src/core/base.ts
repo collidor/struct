@@ -436,6 +436,10 @@ export abstract class BaseSchema<
     return clone as this
   }
 
+  public describe(description: string): this {
+    return this.description(description)
+  }
+
   public placeholder(placeholder: string): this {
     const clone = this._clone()
     clone.descriptor.metadata = { ...clone.descriptor.metadata, placeholder }

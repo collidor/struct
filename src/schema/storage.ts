@@ -18,11 +18,22 @@ export interface EntityRecord<T = Record<string, unknown>> extends EntityMetadat
   data: T
 }
 
+export type SQLType =
+  | 'INTEGER'
+  | 'REAL'
+  | 'TEXT'
+  | 'BLOB'
+  | 'BOOLEAN'
+  | 'BIGINT'
+  | 'DOUBLE PRECISION'
+  | 'TIMESTAMPTZ'
+  | (string & {})
+
 export interface StructFieldMapping {
   name: string
-  sqlType: 'INTEGER' | 'REAL' | 'TEXT' | 'BLOB'
+  sqlType: SQLType
   nullable: boolean
-  defaultValue?: string | number | boolean | null
+  defaultValue?: string | number | boolean | bigint | null
   primaryKey?: boolean
   visibility?: FieldVisibility
 }
