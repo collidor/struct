@@ -9,7 +9,7 @@
     "preview": "vp preview"
   },
   "dependencies": {
-    "@collidor/ui": "^0.1.0",
+    "@collidor/ui": "file:./vendor/collidor-ui-0.1.1.tgz",
     "lit": "^3.3.0",
     "prismjs": "^1.30.0",
     "vue": "3.6.0-rc.10",

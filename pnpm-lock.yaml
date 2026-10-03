@@ -31,8 +31,8 @@ importers:
   docs:
     dependencies:
       '@collidor/ui':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: file:./vendor/collidor-ui-0.1.1.tgz
+        version: file:docs/vendor/collidor-ui-0.1.1.tgz
       lit:
         specifier: ^3.3.0
         version: 3.3.3
@@ -95,8 +95,9 @@ packages:
   '@blazediff/core@1.10.0':
     resolution: {integrity: sha512-AOQff0zgR7cGsZL+4E7hVkmujoPUpm0J9xzWGWZj5wCjd3gmxESXAPfKyuzs93VdpQNFhHlBhfOjrcZ+XTERtQ==}
 
-  '@collidor/ui@0.1.0':
-    resolution: {integrity: sha512-lrKIFm6PQB67p9n/Xf8RQ2/j8skqvY+RhcqRgf8fJxES9BpNeHNa2PfrsqPGCjko7m5hGKoQRAi7J5SlntOzpg==}
+  '@collidor/ui@file:docs/vendor/collidor-ui-0.1.1.tgz':
+    resolution: {integrity: sha512-wxMGHEV1z9Eh9/zt443cfT5/NwOtzMg5l9Lv4tbC5eLmcvEH9kFjEU6dwDEViZlrH+JMWvXH9ItDDcvYcRrr2g==, tarball: file:docs/vendor/collidor-ui-0.1.1.tgz}
+    version: 0.1.1
 
   '@esbuild/aix-ppc64@0.25.12':
     resolution: {integrity: sha512-Hhmwd6CInZ3dwpuGTF8fJG6yoWmsToE+vYgD4nytZVxcu1ulHpUQRAB1UJ8+N1Am3Mz4+xOByoQoSZf4D+CpkA==}
@@ -1689,7 +1690,7 @@ snapshots:
 
   '@blazediff/core@1.10.0': {}
 
-  '@collidor/ui@0.1.0':
+  '@collidor/ui@file:docs/vendor/collidor-ui-0.1.1.tgz':
     dependencies:
       lit: 3.3.3
 
