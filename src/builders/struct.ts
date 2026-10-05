@@ -198,6 +198,17 @@ export class StructSchema<
     return partialStruct
   }
 
+  /**
+   * Gives the struct a component name (stored in `descriptor.name`). Consumers such as
+   * `@collidor/struct-command` use it to find this component on any object by property
+   * name (`Position` matches `position` or `Position`).
+   */
+  public named<const N extends string>(name: N): this & { readonly __name: N } {
+    const clone = this._clone()
+    clone.descriptor.name = name
+    return clone as this & { readonly __name: N }
+  }
+
   public toBuilder(name?: string): StructBuilder {
     if (!_structBuilderFactory) {
       throw new Error('StructBuilder factory has not been registered.')
