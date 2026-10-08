@@ -1,6 +1,6 @@
 {
   "name": "@collidor/struct",
-  "version": "0.2.1",
+  "version": "0.2.0",
   "description": "Modular data structure builder with Standard Schema, JSON Schema, Zod interop, Axon graph port typing, and Vee-Validate form generation",
   "files": [
     "dist",
