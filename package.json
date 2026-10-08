@@ -9,25 +9,25 @@
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
-  "types": "./src/index.ts",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./src/index.ts",
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
     "./bridges/axon": {
-      "types": "./src/bridges/axon.ts",
+      "types": "./dist/bridges/axon.d.ts",
       "import": "./dist/bridges/axon.js",
       "require": "./dist/bridges/axon.cjs"
     },
     "./bridges/zod": {
-      "types": "./src/bridges/zod.ts",
+      "types": "./dist/bridges/zod.d.ts",
       "import": "./dist/bridges/zod.js",
       "require": "./dist/bridges/zod.cjs"
     },
     "./bridges/jsonSchema": {
-      "types": "./src/bridges/jsonSchema.ts",
+      "types": "./dist/bridges/jsonSchema.d.ts",
       "import": "./dist/bridges/jsonSchema.js",
       "require": "./dist/bridges/jsonSchema.cjs"
     }
@@ -43,7 +43,7 @@
   "author": "Alykam Burdzaki <alykam@gmail.com> (https://alykam.com)",
   "license": "MIT",
   "scripts": {
-    "build": "vite build",
+    "build": "vite build && tsc -p tsconfig.build.json",
     "test": "vitest run",
     "docs:dev": "pnpm --filter @collidor/struct-docs run dev",
     "docs:build": "pnpm --filter @collidor/struct-docs run build",
