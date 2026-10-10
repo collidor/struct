@@ -109,14 +109,15 @@ export {
   StandardComponents,
   StandardCapabilities,
   CapabilityValidator,
-  lowerFirst,
-  upperFirst,
   type NamedStruct,
   type NamedComponent,
   type ComponentKey,
   type StructuralCapability,
   type CapabilityFieldRequirement,
   type CapabilityValidationResult,
+  type Out,
+  type In,
+  type NameOf,
 } from './capabilities/index'
 
 // 11. Types

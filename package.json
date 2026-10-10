@@ -54,6 +54,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.13.4",
+    "fast-check": "^4.10.2",
     "typescript": "~5.9.3",
     "vee-validate": "^4.15.1",
     "vite": "^6.0.0",

@@ -134,14 +134,30 @@ describe('Odin-Inspired Named Component Capabilities', () => {
       health: { hp: 30 },
     }
 
-    expect(StandardCapabilities).toBe(StandardComponents)
-    expect(CapabilityValidator.satisfies(goblin, StandardCapabilities.Position)).toBe(true)
-    expect(CapabilityValidator.satisfies(goblin, StandardCapabilities.Velocity)).toBe(false)
+    expect(StandardCapabilities.HasPosition).toBe(StandardComponents.Position)
+    expect(StandardCapabilities.HasHealth).toBe(StandardComponents.Health)
+    expect(StandardCapabilities.HasVelocity).toBe(StandardComponents.Velocity)
+    expect(StandardCapabilities.HasCombatant).toBe(StandardComponents.Combatant)
+    expect(CapabilityValidator.satisfies(goblin, StandardCapabilities.HasPosition)).toBe(true)
+    expect(CapabilityValidator.satisfies(goblin, StandardCapabilities.HasVelocity)).toBe(false)
 
     const descResult = CapabilityValidator.validateDescriptor(
       s.struct({ position: StandardComponents.Position }).descriptor,
-      StandardCapabilities.Position,
+      StandardCapabilities.HasPosition,
     )
     expect(descResult.valid).toBe(true)
+  })
+
+  it('correctly handles vacuous truth and rejects mismatched field types on StructSchema', () => {
+    const goblin = { id: 'goblin_1' }
+    // Vacuous satisfaction over 0 constraints
+    expect(satisfies(goblin)).toBe(true)
+
+    // StructSchema with a field named position, but of wrong schema type (string instead of Position)
+    const InvalidStruct = s.struct({
+      position: s.string(),
+    })
+    expect(hasComponent(InvalidStruct, StandardComponents.Position)).toBe(false)
+    expect(hasComponent(InvalidStruct.descriptor, StandardComponents.Position)).toBe(false)
   })
 })

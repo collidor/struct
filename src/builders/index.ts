@@ -106,7 +106,10 @@ export const s = {
 
   struct: createStruct,
 
-  object: createStruct,
+  object: <TShape extends Record<string, BaseSchema<any, any>>>(
+    shape: TShape = {} as TShape,
+    descriptor?: Partial<StructDescriptor>,
+  ): StructSchema<TShape> => new StructSchema(shape, descriptor),
 
   array: <TItem extends BaseSchema<any, any>>(
     item: TItem,
