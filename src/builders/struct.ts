@@ -198,6 +198,10 @@ export class StructSchema<
     return partialStruct
   }
 
+  public get name(): string | undefined {
+    return this.descriptor.name
+  }
+
   /**
    * Gives the struct a component name (stored in `descriptor.name`). Consumers such as
    * `@collidor/struct-command` use it to find this component on any object by property

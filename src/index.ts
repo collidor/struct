@@ -100,8 +100,20 @@ export {
 
 // 10. Structural Capability Architecture (Odin-Inspired)
 export {
-  CapabilityValidator,
+  ComponentResolutionError,
+  getComponentName,
+  getComponent,
+  hasComponent,
+  satisfies,
+  extractComponents,
+  StandardComponents,
   StandardCapabilities,
+  CapabilityValidator,
+  lowerFirst,
+  upperFirst,
+  type NamedStruct,
+  type NamedComponent,
+  type ComponentKey,
   type StructuralCapability,
   type CapabilityFieldRequirement,
   type CapabilityValidationResult,

@@ -1,18 +1,212 @@
-import type { StructDescriptor, TypeKind } from '../types/ast'
+// oxlint-disable typescript/no-explicit-any
+import { s } from '../builders/index'
+import { StructSchema } from '../builders/struct'
+import type { BaseSchema } from '../core/base'
 
 /**
- * Structural Capability definition specifying required fields and their expected primitive kinds.
+ * A named struct schema acting as a reusable component capability.
  */
-export interface CapabilityFieldRequirement {
-  name: string
-  kind: TypeKind | TypeKind[]
-  optional?: boolean
+export type NamedStruct<
+  N extends string = string,
+  TShape extends Record<string, BaseSchema<any, any>> = Record<string, BaseSchema<any, any>>,
+> = StructSchema<TShape> & { readonly __name: N }
+
+export type NamedComponent = BaseSchema<any, any> & { readonly __name: string }
+
+/** Property names (`Position` -> `"position" | "Position"`) a component may live under. */
+export type ComponentKey<N extends string> = Uncapitalize<N> | Capitalize<N>
+
+export const lowerFirst = (str: string): string =>
+  str.length > 0 ? str.charAt(0).toLowerCase() + str.slice(1) : str
+
+export const upperFirst = (str: string): string =>
+  str.length > 0 ? str.charAt(0).toUpperCase() + str.slice(1) : str
+
+type Out<T> = T extends BaseSchema<any, infer O> ? O : never
+type NameOf<C> = C extends { readonly __name: infer N extends string }
+  ? N
+  : C extends { descriptor: { name: infer N extends string } }
+    ? N
+    : string
+
+/**
+ * Extracts the registered component name from a schema or descriptor.
+ */
+export function getComponentName(component: unknown): string {
+  const name =
+    (component as any)?.descriptor?.name ??
+    (component as any)?.__name ??
+    (component as any)?.name
+  if (typeof name !== 'string' || name.trim().length === 0) {
+    throw new TypeError(
+      'Component must be named, e.g. s.struct("Position", { ... }) or s.struct({ ... }).named("Position")',
+    )
+  }
+  return name
 }
 
-export interface StructuralCapability {
+/** Error raised when a host object or schema cannot supply a required component. */
+export class ComponentResolutionError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'ComponentResolutionError'
+  }
+}
+
+/**
+ * Resolves and validates a single named component on `source` (matching either
+ * uncapitalized or capitalized property name, e.g. `position` or `Position`).
+ */
+export function getComponent<T extends BaseSchema<any, any>>(
+  source: unknown,
+  component: T,
+): Out<T> {
+  const name = getComponentName(component)
+  if (typeof source !== 'object' || source === null) {
+    throw new ComponentResolutionError(
+      `Expected an object carrying "${name}", received ${source === null ? 'null' : typeof source}`,
+    )
+  }
+
+  const obj = source as Record<string, unknown>
+  const keys = [...new Set([lowerFirst(name), upperFirst(name)])]
+  const present = keys.filter((k) => obj[k] !== undefined)
+
+  if (present.length === 0) {
+    throw new ComponentResolutionError(
+      `Object has no "${name}" component (looked for ${keys.map((k) => `"${k}"`).join(', ')})`,
+    )
+  }
+
+  if (present.length > 1) {
+    throw new ComponentResolutionError(
+      `Ambiguous "${name}" component: found under ${present.map((k) => `"${k}"`).join(', ')}`,
+    )
+  }
+
+  const foundKey = present[0]
+  const res = component.safeParse(obj[foundKey])
+  if (!res.success) {
+    throw new ComponentResolutionError(
+      `Invalid "${name}" component at "${foundKey}": ${res.issues.map((i: any) => i.message).join('; ')}`,
+    )
+  }
+
+  return res.data as Out<T>
+}
+
+/**
+ * Checks whether `source` satisfies a given component requirement (by property
+ * name matching and structural schema validation). Works for runtime objects,
+ * `StructSchema` definitions, and AST descriptors.
+ */
+export function hasComponent(
+  source: unknown,
+  component: BaseSchema<any, any> | NamedStruct<any, any>,
+): boolean {
+  if (typeof source !== 'object' || source === null) {
+    return false
+  }
+
+  let name: string
+  try {
+    name = getComponentName(component)
+  } catch {
+    return false
+  }
+
+  const keys = [...new Set([lowerFirst(name), upperFirst(name)])]
+
+  if (source instanceof StructSchema) {
+    return keys.some((k) => k in source.shape)
+  }
+
+  if ((source as any).kind === 'struct' && typeof (source as any).fields === 'object') {
+    const fields = (source as any).fields ?? {}
+    return keys.some((k) => k in fields)
+  }
+
+  try {
+    getComponent(source, component)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Checks whether `source` satisfies all given component requirements.
+ */
+export function satisfies(
+  source: unknown,
+  ...components: (BaseSchema<any, any> | NamedStruct<any, any>)[]
+): boolean {
+  if (components.length === 0) {
+    return false
+  }
+  return components.every((comp) => hasComponent(source, comp))
+}
+
+/**
+ * Resolves components from `source`. If a single component is provided, returns
+ * that component's validated output; otherwise returns an object keyed by
+ * uncapitalized component names (`{ position, health, ... }`).
+ */
+export function extractComponents<
+  const L extends readonly [BaseSchema<any, any>, ...(BaseSchema<any, any>)[]],
+>(
+  source: unknown,
+  ...components: L
+): L extends readonly [infer Only extends BaseSchema<any, any>]
+  ? Out<Only>
+  : { [C in L[number] as Uncapitalize<NameOf<C>>]: Out<C> } {
+  if (components.length === 1) {
+    return getComponent(source, components[0]) as any
+  }
+
+  const result: Record<string, unknown> = {}
+  for (const comp of components) {
+    const name = getComponentName(comp)
+    result[lowerFirst(name)] = getComponent(source, comp)
+  }
+  return result as any
+}
+
+/**
+ * Built-in standard components for game objects, simulations, and node graphs.
+ */
+export const StandardComponents = {
+  Position: s.struct('Position', {
+    x: s.number(),
+    y: s.number(),
+    z: s.number().optional(),
+  }),
+
+  Health: s.struct('Health', {
+    hp: s.number(),
+    max_hp: s.number().optional(),
+  }),
+
+  Velocity: s.struct('Velocity', {
+    vx: s.number(),
+    vy: s.number(),
+  }),
+
+  Combatant: s.struct('Combatant', {
+    name: s.string(),
+    initiative: s.number().optional(),
+    is_active: s.boolean().optional(),
+  }),
+}
+
+// Backwards-compatibility aliases and adapter
+export const StandardCapabilities = StandardComponents
+export type StructuralCapability = NamedStruct<any, any>
+
+export interface CapabilityFieldRequirement {
   name: string
-  description?: string
-  fields: CapabilityFieldRequirement[]
+  kind: any
+  optional?: boolean
 }
 
 export interface CapabilityValidationResult {
@@ -21,153 +215,47 @@ export interface CapabilityValidationResult {
   typeMismatches: { field: string; expected: string; actual: string }[]
 }
 
-/**
- * Built-in standard capabilities for TTRPG and game system nodes.
- */
-export const StandardCapabilities = {
-  HasPosition: {
-    name: 'HasPosition',
-    description: 'Spatial coordinate representation in 2D or 3D space',
-    fields: [
-      { name: 'x', kind: ['number', 'integer'] },
-      { name: 'y', kind: ['number', 'integer'] },
-      { name: 'z', kind: ['number', 'integer'], optional: true },
-    ],
-  } as StructuralCapability,
-
-  HasHealth: {
-    name: 'HasHealth',
-    description: 'Vital statistics and hit point resource pools',
-    fields: [
-      { name: 'hp', kind: ['number', 'integer'] },
-      { name: 'max_hp', kind: ['number', 'integer'], optional: true },
-    ],
-  } as StructuralCapability,
-
-  HasVelocity: {
-    name: 'HasVelocity',
-    description: 'Vector velocity components for physics and movement simulation',
-    fields: [
-      { name: 'vx', kind: ['number', 'integer'] },
-      { name: 'vy', kind: ['number', 'integer'] },
-    ],
-  } as StructuralCapability,
-
-  HasCombatant: {
-    name: 'HasCombatant',
-    description: 'Entity participating in turn-based combat initiative',
-    fields: [
-      { name: 'name', kind: 'string' },
-      { name: 'initiative', kind: ['number', 'integer'], optional: true },
-      { name: 'is_active', kind: 'boolean', optional: true },
-    ],
-  } as StructuralCapability,
-}
-
 export class CapabilityValidator {
-  /**
-   * Validates whether a StructDescriptor structurally satisfies a required capability.
-   */
-  public static validateDescriptor(
-    descriptor: StructDescriptor,
-    capability: StructuralCapability,
-  ): CapabilityValidationResult {
-    const missingFields: string[] = []
-    const typeMismatches: { field: string; expected: string; actual: string }[] = []
-
-    for (const req of capability.fields) {
-      const fieldDesc = descriptor.fields[req.name]
-      if (!fieldDesc) {
-        if (!req.optional) {
-          missingFields.push(req.name)
-        }
-        continue
-      }
-
-      const expectedKinds = Array.isArray(req.kind) ? req.kind : [req.kind]
-      if (!expectedKinds.includes(fieldDesc.kind)) {
-        typeMismatches.push({
-          field: req.name,
-          expected: expectedKinds.join(' | '),
-          actual: fieldDesc.kind,
-        })
-      }
-    }
-
-    const valid = missingFields.length === 0 && typeMismatches.length === 0
-    return { valid, missingFields, typeMismatches }
+  public static satisfies(
+    target: unknown,
+    capability: BaseSchema<any, any> | NamedStruct<any, any>,
+  ): boolean {
+    return hasComponent(target, capability)
   }
 
-  /**
-   * Validates whether a live entity data object satisfies a required capability.
-   */
+  public static validateDescriptor(
+    descriptor: unknown,
+    capability: BaseSchema<any, any> | NamedStruct<any, any>,
+  ): CapabilityValidationResult {
+    const valid = hasComponent(descriptor, capability)
+    let missingName = 'unknown'
+    try {
+      missingName = getComponentName(capability)
+    } catch {
+      // ignore
+    }
+    return {
+      valid,
+      missingFields: valid ? [] : [missingName],
+      typeMismatches: [],
+    }
+  }
+
   public static validateEntityData(
     data: Record<string, unknown>,
-    capability: StructuralCapability,
+    capability: BaseSchema<any, any> | NamedStruct<any, any>,
   ): CapabilityValidationResult {
-    const missingFields: string[] = []
-    const typeMismatches: { field: string; expected: string; actual: string }[] = []
-
-    for (const req of capability.fields) {
-      const val = data[req.name]
-      if (val === undefined || val === null) {
-        if (!req.optional) {
-          missingFields.push(req.name)
-        }
-        continue
-      }
-
-      const actualType = typeof val
-      const expectedKinds = Array.isArray(req.kind) ? req.kind : [req.kind]
-
-      let matches = false
-      for (const kind of expectedKinds) {
-        if (
-          (kind === 'number' || kind === 'integer') &&
-          actualType === 'number' &&
-          !isNaN(val as number)
-        ) {
-          matches = true
-          break
-        }
-        if (kind === 'string' && actualType === 'string') {
-          matches = true
-          break
-        }
-        if (kind === 'boolean' && actualType === 'boolean') {
-          matches = true
-          break
-        }
-        if (kind === 'struct' && actualType === 'object') {
-          matches = true
-          break
-        }
-        if (kind === 'array' && Array.isArray(val)) {
-          matches = true
-          break
-        }
-      }
-
-      if (!matches) {
-        typeMismatches.push({
-          field: req.name,
-          expected: expectedKinds.join(' | '),
-          actual: actualType,
-        })
-      }
+    const valid = hasComponent(data, capability)
+    let missingName = 'unknown'
+    try {
+      missingName = getComponentName(capability)
+    } catch {
+      // ignore
     }
-
-    const valid = missingFields.length === 0 && typeMismatches.length === 0
-    return { valid, missingFields, typeMismatches }
-  }
-
-  public static satisfies(
-    target: StructDescriptor | Record<string, unknown>,
-    capability: StructuralCapability,
-  ): boolean {
-    if ('kind' in target && target.kind === 'struct' && 'fields' in target) {
-      return this.validateDescriptor(target as StructDescriptor, capability).valid
+    return {
+      valid,
+      missingFields: valid ? [] : [missingName],
+      typeMismatches: [],
     }
-    return this.validateEntityData(target as Record<string, unknown>, capability).valid
   }
 }

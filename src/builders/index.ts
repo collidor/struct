@@ -35,6 +35,34 @@ import type {
   TypeKind,
 } from '../types/ast'
 
+export interface StructBuilderFn {
+  <const N extends string, TShape extends Record<string, BaseSchema<any, any>>>(
+    name: N,
+    shape?: TShape,
+    descriptor?: Partial<StructDescriptor>,
+  ): StructSchema<TShape> & { readonly __name: N }
+  <TShape extends Record<string, BaseSchema<any, any>>>(
+    shape?: TShape,
+    descriptor?: Partial<StructDescriptor>,
+  ): StructSchema<TShape>
+}
+
+const createStruct: StructBuilderFn = ((
+  nameOrShape: any = {},
+  shapeOrDescriptor?: any,
+  maybeDescriptor?: any,
+) => {
+  if (typeof nameOrShape === 'string') {
+    const shape = shapeOrDescriptor ?? {}
+    const schema = new StructSchema(shape, {
+      name: nameOrShape,
+      ...maybeDescriptor,
+    })
+    return schema.named(nameOrShape)
+  }
+  return new StructSchema(nameOrShape, shapeOrDescriptor)
+}) as StructBuilderFn
+
 export const s = {
   string: (descriptor?: Partial<StringDescriptor>): StringSchema => new StringSchema(descriptor),
   number: (descriptor?: Partial<NumberDescriptor>): NumberSchema => new NumberSchema(descriptor),
@@ -76,15 +104,9 @@ export const s = {
       new BigIntSchema<unknown>({ coerce: true, ...descriptor }),
   },
 
-  struct: <TShape extends Record<string, BaseSchema<any, any>>>(
-    shape: TShape = {} as TShape,
-    descriptor?: Partial<StructDescriptor>,
-  ): StructSchema<TShape> => new StructSchema(shape, descriptor),
+  struct: createStruct,
 
-  object: <TShape extends Record<string, BaseSchema<any, any>>>(
-    shape: TShape = {} as TShape,
-    descriptor?: Partial<StructDescriptor>,
-  ): StructSchema<TShape> => new StructSchema(shape, descriptor),
+  object: createStruct,
 
   array: <TItem extends BaseSchema<any, any>>(
     item: TItem,
