@@ -6,8 +6,12 @@ describe('Form Inspector & UI Widget Inference', () => {
     expect(inferWidget(s.string().descriptor).widget).toBe('text')
     expect(inferWidget(s.string().format('color').descriptor).widget).toBe('color')
     expect(inferWidget(s.string().max(200).descriptor).widget).toBe('textarea')
-    expect(inferWidget(s.number().min(0).max(100).descriptor).widget).toBe('slider')
-    expect(inferWidget(s.integer().descriptor).widget).toBe('stepper')
+    expect(inferWidget(s.number().min(0).max(100).descriptor).widget).toBe('number')
+    expect(inferWidget(s.number().min(0).max(100).asRange().descriptor).widget).toBe('range')
+    expect(inferWidget(s.number().min(0).max(100).asSlider().descriptor).widget).toBe('slider')
+    expect(
+      inferWidget(s.number().integer().min(18).max(120).describe('User age').descriptor).widget
+    ).toBe('number')
     expect(inferWidget(s.boolean().descriptor).widget).toBe('switch')
     expect(inferWidget(s.enum(['a', 'b']).descriptor).widget).toBe('select')
   })

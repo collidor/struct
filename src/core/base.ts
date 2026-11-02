@@ -1,9 +1,25 @@
 import type { StandardSchemaV1 } from '../types/standard'
-import type { TypeDescriptor, FieldMetadata, WidgetHint } from '../types/ast'
+import type {
+  TypeDescriptor,
+  FieldMetadata,
+  WidgetHint,
+  HttpDataSourceConfig,
+  ProviderDataSourceConfig,
+  DataSourceConfig,
+  VirtualScrollConfig,
+  AsyncPaginationConfig,
+} from '../types/ast'
 import { StructValidationError, type StructIssue } from './errors'
 import { generateDefaultValue } from '../utils/defaults'
 import { cloneDescriptor } from '../utils/clone'
 import type { TransformSchema, PipeSchema, TransformFn } from '../builders/transform'
+import {
+  normalizeHttpConfig,
+  normalizeProviderConfig,
+  normalizeVirtualConfig,
+  normalizePaginationConfig,
+} from '../form/utils/dataSource'
+
 
 export type { TransformFn }
 
@@ -495,6 +511,68 @@ export abstract class BaseSchema<
   public readonly(readonly = true): this {
     return this._setMetadata({ readonly })
   }
+
+  public get dataSource(): DataSourceConfig | undefined {
+    return this.descriptor.metadata?.dataSource
+  }
+
+  public get virtualConfig(): VirtualScrollConfig | undefined {
+    return this.descriptor.metadata?.virtual
+  }
+
+  public get paginationConfig(): AsyncPaginationConfig | undefined {
+    return this.descriptor.metadata?.pagination
+  }
+
+  public fromHttp(config: Omit<HttpDataSourceConfig, 'type'>): this {
+    const normalized = normalizeHttpConfig(config)
+    return this._setMetadata({ dataSource: normalized })
+  }
+
+  public fromProvider(
+    key: string,
+    config?: Omit<ProviderDataSourceConfig, 'type' | 'key'>,
+  ): this {
+    const normalized = normalizeProviderConfig(key, config)
+    return this._setMetadata({ dataSource: normalized })
+  }
+
+  public virtual(config?: Partial<VirtualScrollConfig> | boolean): this {
+    const normalized = normalizeVirtualConfig(config)
+    return this._setMetadata({ virtual: normalized })
+  }
+
+  public paginate(config?: Partial<AsyncPaginationConfig> | number): this {
+    const normalized = normalizePaginationConfig(config)
+    return this._setMetadata({ pagination: normalized })
+  }
+
+  public asWidget(widget: WidgetHint, props: Record<string, unknown> = {}): this {
+    return this._setMetadata({
+      widget,
+      widgetProps: {
+        ...((this.descriptor.metadata?.widgetProps as Record<string, unknown>) || {}),
+        ...props,
+      },
+    })
+  }
+
+  public asSelect(props: Record<string, unknown> = {}): this {
+    return this.asWidget('select', props)
+  }
+
+  public asCombobox(props: Record<string, unknown> = {}): this {
+    return this.asWidget('combobox', props)
+  }
+
+  public asSlider(props: Record<string, unknown> = {}): this {
+    return this.asWidget('slider', props)
+  }
+
+  public asRange(props: Record<string, unknown> = {}): this {
+    return this.asWidget('range', props)
+  }
+
 
   public refine(
     fn: RefinementFn<TOutput>,

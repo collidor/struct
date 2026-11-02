@@ -7,6 +7,7 @@ export type WidgetHint =
   | 'textarea'
   | 'number'
   | 'slider'
+  | 'range'
   | 'stepper'
   | 'switch'
   | 'checkbox'
@@ -22,8 +23,49 @@ export type WidgetHint =
   | 'file'
   | 'table'
   | 'list'
+  | 'combobox'
   | 'custom'
   | (string & {})
+
+export interface HttpDataSourceConfig {
+  type: 'http'
+  url: string
+  method?: 'GET' | 'POST'
+  headers?: Record<string, string>
+  query?: Record<string, string | number | boolean>
+  body?: Record<string, unknown>
+  responseItemsPath?: string
+  responseTotalPath?: string
+  responseNextCursorPath?: string
+  valueKey?: string
+  labelKey?: string
+  descriptionKey?: string
+  debounceMs?: number
+  dependsOn?: string[]
+}
+
+export interface ProviderDataSourceConfig {
+  type: 'provider'
+  key: string
+  params?: Record<string, string | number | boolean>
+  debounceMs?: number
+  dependsOn?: string[]
+}
+
+export type DataSourceConfig = HttpDataSourceConfig | ProviderDataSourceConfig
+
+export interface VirtualScrollConfig {
+  enabled: boolean
+  itemHeight?: number
+  overscan?: number
+  viewportHeight?: string
+  threshold?: number
+}
+
+export interface AsyncPaginationConfig {
+  mode: 'pages' | 'infinite' | 'cursor'
+  pageSize?: number
+}
 
 export interface FieldMetadata {
   label?: string
@@ -41,8 +83,12 @@ export interface FieldMetadata {
   readonly?: boolean
   badge?: string
   icon?: string
+  dataSource?: DataSourceConfig
+  virtual?: VirtualScrollConfig
+  pagination?: AsyncPaginationConfig
   [key: string]: unknown
 }
+
 
 export type StringFormat =
   | 'email'

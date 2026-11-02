@@ -104,9 +104,9 @@ onUnmounted(() => {
               Inspect live forms, test sample JSON inputs, and preview real-time JSON Schema &amp; SQL DDL conversions.
             </p>
           </div>
-          <button class="promo-btn" @click="onTabChange('playground')">
+          <ui-button variant="primary" size="md" @click="onTabChange('playground')">
             Launch Workbench →
-          </button>
+          </ui-button>
         </div>
       </main>
     </div>
@@ -120,9 +120,9 @@ onUnmounted(() => {
             Wide-screen live development workbench for <code>@collidor/struct</code> with Vue 3 Vapor mode &amp; <code>@collidor/ui</code>.
           </p>
         </div>
-        <button class="back-docs-btn" @click="onTabChange('docs')">
+        <ui-button variant="secondary" size="sm" @click="onTabChange('docs')">
           ← Back to Docs
-        </button>
+        </ui-button>
       </div>
 
       <Playground :full-screen="true" />

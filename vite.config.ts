@@ -14,6 +14,7 @@ export default defineConfig({
         'bridges/axon': resolve(__dirname, 'src/bridges/axon.ts'),
         'bridges/zod': resolve(__dirname, 'src/bridges/zod.ts'),
         'bridges/jsonSchema': resolve(__dirname, 'src/bridges/jsonSchema.ts'),
+        'form/index': resolve(__dirname, 'src/form/index.ts'),
       },
       name: 'CollidorStruct',
       fileName: (format, entryName) => `${entryName}.${format === 'es' ? 'js' : 'cjs'}`,

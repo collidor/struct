@@ -163,7 +163,8 @@ describe('Code Review Bug Fixes & Refactorings', () => {
 
     it('infers widget correctly using dispatch table without monolithic switch', () => {
       expect(inferWidget(s.string().email().descriptor).props.type).toBe('email')
-      expect(inferWidget(s.number().min(0).max(50).descriptor).widget).toBe('slider')
+      expect(inferWidget(s.number().min(0).max(50).descriptor).widget).toBe('number')
+      expect(inferWidget(s.number().min(0).max(50).asRange().descriptor).widget).toBe('range')
       expect(inferWidget(s.boolean().descriptor).widget).toBe('switch')
       expect(inferWidget(s.date().descriptor).widget).toBe('date')
     })

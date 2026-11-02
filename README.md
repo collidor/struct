@@ -55,6 +55,54 @@ if (result.success) {
 }
 ```
 
+## Unified Form Builder (`@collidor/struct/form`)
+
+The `@collidor/struct/form` secondary export unifies spatial layout containers, non-data UI decorators, conditional rendering, and collection view modes directly inside structure definitions:
+
+```typescript
+import { f } from "@collidor/struct/form";
+
+const OnboardingForm = f.struct({
+  banner: f.alert({
+    title: "Welcome",
+    message: "Fill in your details below",
+    tone: "info",
+  }),
+
+  // Put two inputs on the same line
+  nameRow: f.row({
+    firstName: f.string().min(2),
+    lastName: f.string().min(2),
+  }, { gap: "1rem" }),
+
+  accountType: f.enum(["personal", "business"] as const).default("personal"),
+
+  // Conditional branch (validation bypassed when hidden)
+  companyInfo: f.when('accountType == "business"', {
+    companyName: f.string(),
+    vatId: f.string(),
+  }),
+
+  // Collection view modes (asTable, asList, asCards, asTags)
+  skills: f.array(f.string()).asTags(),
+  submitBtn: f.button({ label: "Create Account", action: "submit" }),
+});
+
+// Flat data model: UI-only nodes stripped, layout containers flattened!
+const validated = OnboardingForm.parse({
+  firstName: "Ada",
+  lastName: "Lovelace",
+  accountType: "personal",
+  skills: ["computing", "math"],
+});
+
+// Framework-agnostic Headless Form Controller
+const controller = f.createController(OnboardingForm, {
+  initialValues: validated,
+  onSubmit: (values) => console.log("Submitted:", values),
+});
+```
+
 ## Zod & JSON Schema Interop
 
 ```typescript

@@ -1,6 +1,6 @@
 {
   "name": "@collidor/struct",
-  "version": "0.2.0",
+  "version": "1.1.1",
   "description": "Modular data structure builder with Standard Schema, JSON Schema, Zod interop, Axon graph port typing, and Vee-Validate form generation",
   "files": [
     "dist",
@@ -30,6 +30,11 @@
       "types": "./dist/bridges/jsonSchema.d.ts",
       "import": "./dist/bridges/jsonSchema.js",
       "require": "./dist/bridges/jsonSchema.cjs"
+    },
+    "./form": {
+      "types": "./dist/form/index.d.ts",
+      "import": "./dist/form/index.js",
+      "require": "./dist/form/index.cjs"
     }
   },
   "repository": {
@@ -50,6 +55,7 @@
     "docs:preview": "pnpm --filter @collidor/struct-docs run preview"
   },
   "dependencies": {
+    "@collidor/ui": "link:../ui",
     "zod": "^3.24.2"
   },
   "devDependencies": {

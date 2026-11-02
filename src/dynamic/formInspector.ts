@@ -65,10 +65,10 @@ function inferNumberWidget(
   if (desc.min !== undefined) props.min = desc.min
   if (desc.max !== undefined) props.max = desc.max
   if (desc.step !== undefined) props.step = desc.step
-  if (desc.min !== undefined && desc.max !== undefined && desc.max - desc.min <= 100) {
-    return { widget: 'slider', props }
+  if (desc.metadata?.widget === 'slider' || desc.metadata?.widget === 'range') {
+    return { widget: desc.metadata.widget, props }
   }
-  return { widget: desc.kind === 'integer' ? 'stepper' : 'number', props }
+  return { widget: 'number', props }
 }
 
 function formatEnumOptions(
@@ -166,6 +166,12 @@ export function inferWidget(desc: TypeDescriptor): {
   if (meta.widget) {
     if (meta.widget === 'password' && !props.type) {
       props.type = 'password'
+    }
+    if (desc.kind === 'number' || desc.kind === 'integer') {
+      const numDesc = desc as NumberDescriptor
+      if (numDesc.min !== undefined && props.min === undefined) props.min = numDesc.min
+      if (numDesc.max !== undefined && props.max === undefined) props.max = numDesc.max
+      if (numDesc.step !== undefined && props.step === undefined) props.step = numDesc.step
     }
     return { widget: meta.widget, props }
   }

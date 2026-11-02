@@ -43,7 +43,27 @@ export type ASTEvaluationContext = Record<string, unknown>
 
 import { parseExpression, extractDependencies } from './expressionParser'
 
-const BUILTIN_FUNCTIONS: Record<string, (...args: number[]) => number> = {
+function itemMatches(item: unknown, target: unknown): boolean {
+  if (item === target) return true
+  if (typeof item === 'object' && item !== null && typeof target === 'object' && target !== null) {
+    try {
+      return JSON.stringify(item) === JSON.stringify(target)
+    } catch {
+      return false
+    }
+  }
+  return String(item) === String(target)
+}
+
+function checkContains(container: unknown, search: unknown): boolean {
+  if (container === undefined || container === null) return false
+  if (Array.isArray(container)) {
+    return container.some((item) => itemMatches(item, search))
+  }
+  return String(container).includes(String(search ?? ''))
+}
+
+const BUILTIN_FUNCTIONS: Record<string, (...args: any[]) => any> = {
   floor: Math.floor,
   ceil: Math.ceil,
   round: Math.round,
@@ -54,7 +74,23 @@ const BUILTIN_FUNCTIONS: Record<string, (...args: number[]) => number> = {
   pow: Math.pow,
   trunc: Math.trunc,
   sign: Math.sign,
-  clamp: (val: number, min: number, max: number) => Math.max(min, Math.min(max, val)),
+  clamp: (val: any, min: any, max: any) => Math.max(Number(min), Math.min(Number(max), Number(val))),
+  // String and list/collection functions for conditions and computed expressions
+  contains: (container: any, search: any) => checkContains(container, search),
+  includes: (container: any, search: any) => checkContains(container, search),
+  not_contains: (container: any, search: any) => !checkContains(container, search),
+  in: (item: any, list: any) => (Array.isArray(list) ? list.some((x) => itemMatches(x, item)) : false),
+  not_in: (item: any, list: any) => (Array.isArray(list) ? !list.some((x) => itemMatches(x, item)) : true),
+  startsWith: (str: any, search: any) => String(str ?? '').startsWith(String(search ?? '')),
+  endsWith: (str: any, search: any) => String(str ?? '').endsWith(String(search ?? '')),
+  lower: (str: any) => String(str ?? '').toLowerCase(),
+  upper: (str: any) => String(str ?? '').toUpperCase(),
+  len: (val: any) => (typeof val === 'string' || Array.isArray(val) ? val.length : 0),
+  length: (val: any) => (typeof val === 'string' || Array.isArray(val) ? val.length : 0),
+  isEmpty: (val: any) =>
+    val === undefined || val === null || val === '' || (Array.isArray(val) && val.length === 0),
+  isNotEmpty: (val: any) =>
+    val !== undefined && val !== null && val !== '' && (!Array.isArray(val) || val.length > 0),
 }
 
 /**
@@ -157,10 +193,7 @@ export function evaluateAST(expr: ASTExpression, context: ASTEvaluationContext):
       if (!fn) {
         throw new Error(`Unknown function: ${expr.callee}`)
       }
-      const args = expr.arguments.map((arg) => {
-        const val = evaluateAST(arg, context)
-        return customFn ? val : Number(val)
-      })
+      const args = expr.arguments.map((arg) => evaluateAST(arg, context))
       return (fn as (...args: unknown[]) => unknown)(...args)
     }
 

@@ -19,19 +19,27 @@ html, body {
 }
 
 /* Custom Scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ui-color-border-strong, oklch(0.38 0.025 260)) transparent;
+}
+
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--ui-color-border, oklch(0.28 0.025 260));
+  background: var(--ui-color-border-strong, oklch(0.38 0.025 260));
   border-radius: var(--ui-radius-full, 9999px);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--ui-color-primary, oklch(0.62 0.2 260));
+  background: var(--ui-color-primary, oklch(0.65 0.2 260));
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* Typography */
@@ -643,9 +651,12 @@ pre code {
   overflow: hidden;
   box-shadow: var(--ui-shadow-md, 0 10px 25px -4px #0000001f);
   margin: 2em 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .playground-header {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -659,12 +670,29 @@ pre code {
 .playground-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  min-height: 480px;
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 520px;
+  flex: 1;
+  overflow: hidden;
 }
 
 @media (max-width: 900px) {
+  .playground-container {
+    height: auto !important;
+    min-height: unset !important;
+  }
   .playground-grid {
     grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+    overflow: visible;
+  }
+  .pane-left {
+    border-right: none;
+    border-bottom: 1px solid var(--ui-color-border-subtle, oklch(0.24 0.02 260));
+    height: 520px;
+  }
+  .pane-right {
+    height: 680px;
   }
   .docs-sidebar {
     display: none;
@@ -677,6 +705,10 @@ pre code {
 .pane {
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 .pane-left {
@@ -684,7 +716,18 @@ pre code {
   background: var(--ui-color-surface, oklch(0.12 0.015 260));
 }
 
+.pane-right {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--ui-color-surface, oklch(0.14 0.02 260));
+}
+
 .pane-header {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -699,25 +742,14 @@ pre code {
 }
 
 .pane-content {
-  flex: 1;
-  padding: 1em;
-  overflow: auto;
-}
-
-.editor-textarea {
-  width: 100%;
-  height: 100%;
-  min-height: 380px;
-  background: transparent;
-  color: var(--ui-color-text, oklch(0.96 0 0));
-  font-family: var(--ui-font-mono, monospace);
-  font-size: 0.88rem;
-  line-height: 1.5;
-  border: none;
-  outline: none;
-  resize: vertical;
-  padding: 0.618em;
-  box-sizing: border-box;
+  flex: 1 1 0%;
+  min-height: 0;
+  padding: 1.236em;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ui-color-border-strong, oklch(0.38 0.025 260)) transparent;
 }
 
 /* Feature Grid */

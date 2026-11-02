@@ -42,6 +42,12 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: 'UI & Forms',
     items: [
+      { id: 'unified-form-builder', title: 'Unified Form Builder (f.*)', badge: 'New' },
+      { id: 'spatial-layouts', title: 'Spatial Layouts & Rows' },
+      { id: 'ui-only-nodes', title: 'UI-Only Nodes & Decorators' },
+      { id: 'conditional-rendering', title: 'Conditional Branches (when)' },
+      { id: 'collection-views', title: 'Collection Views (Table, List)' },
+      { id: 'headless-controller', title: 'Headless Form Controller' },
       { id: 'form-inspector', title: 'Form Inspector & Widgets' },
       { id: 'collidor-ui-form', title: 'Native <ui-struct-form>', badge: 'Lit' },
     ],
