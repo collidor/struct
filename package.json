@@ -55,7 +55,7 @@
     "docs:preview": "pnpm --filter @collidor/struct-docs run preview"
   },
   "dependencies": {
-    "@collidor/ui": "link:../ui",
+    "@collidor/ui": "^0.1.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {
