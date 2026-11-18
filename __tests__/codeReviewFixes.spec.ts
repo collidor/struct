@@ -6,7 +6,7 @@ import {
   isAssignable,
   getAxonDataType,
   toZod,
-  fromZod,
+  fromZodV3,
   getFormFields,
   inferWidget,
   BaseSchema,
@@ -198,16 +198,16 @@ describe('Code Review Bug Fixes & Refactorings', () => {
   })
 
   describe('Zod Bridge Preprocess & Refinement Enhancements', () => {
-    it('executes preprocess BEFORE inner schema validation in fromZod', () => {
+    it('executes preprocess BEFORE inner schema validation in fromZodV3', () => {
       const zPre = z.preprocess((val) => Number(val), z.number().min(10))
-      const structSchema = fromZod(zPre)
+      const structSchema = fromZodV3(zPre)
 
       // Preprocessing converts string to number before number().min(10) validates
       expect(structSchema.parse('42')).toBe(42)
       expect(structSchema.safeParse('5').success).toBe(false)
     })
 
-    it('propagates custom refinement paths in fromZod superRefine/refine', () => {
+    it('propagates custom refinement paths in fromZodV3 superRefine/refine', () => {
       const zObj = z
         .object({
           password: z.string(),
@@ -223,7 +223,7 @@ describe('Code Review Bug Fixes & Refactorings', () => {
           }
         })
 
-      const structSchema = fromZod(zObj)
+      const structSchema = fromZodV3(zObj)
       const res = structSchema.safeParse({ password: 'abc', confirm: 'xyz' })
       expect(res.success).toBe(false)
       expect(res.issues?.[0]?.path).toEqual(['confirm'])
@@ -435,10 +435,10 @@ describe('Code Review Bug Fixes & Refactorings', () => {
     })
   })
 
-  describe('fromZod BigInt Constraint Roundtripping', () => {
+  describe('fromZodV3 BigInt Constraint Roundtripping', () => {
     it('restores positive constraint on BigInt', () => {
       const zodBigInt = z.bigint().positive()
-      const structSchema = fromZod(zodBigInt)
+      const structSchema = fromZodV3(zodBigInt)
       expect(structSchema.descriptor.kind).toBe('bigint')
       expect((structSchema.descriptor as any).positive).toBe(true)
 
@@ -449,7 +449,7 @@ describe('Code Review Bug Fixes & Refactorings', () => {
 
     it('restores nonnegative constraint on BigInt', () => {
       const zodBigInt = z.bigint().nonnegative()
-      const structSchema = fromZod(zodBigInt)
+      const structSchema = fromZodV3(zodBigInt)
       expect((structSchema.descriptor as any).nonnegative).toBe(true)
 
       expect(structSchema.safeParse(0n).success).toBe(true)
@@ -459,7 +459,7 @@ describe('Code Review Bug Fixes & Refactorings', () => {
 
     it('restores negative constraint on BigInt', () => {
       const zodBigInt = z.bigint().negative()
-      const structSchema = fromZod(zodBigInt)
+      const structSchema = fromZodV3(zodBigInt)
       expect((structSchema.descriptor as any).negative).toBe(true)
 
       expect(structSchema.safeParse(-5n).success).toBe(true)

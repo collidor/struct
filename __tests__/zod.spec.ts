@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
-import { s, toZod, fromZod } from '../src'
+import { s, toZod, fromZodV3 } from '../src'
 
 describe('Zod Bridge Interoperability', () => {
   it('converts struct schema to Zod schema', () => {
@@ -24,13 +24,13 @@ describe('Zod Bridge Interoperability', () => {
     expect(invalidRes.success).toBe(false)
   })
 
-  it('converts Zod schema into struct schema with fromZod()', () => {
+  it('converts Zod schema into struct schema with fromZodV3()', () => {
     const zodObj = z.object({
       name: z.string().describe('Item name'),
       price: z.number(),
     })
 
-    const struct = fromZod(zodObj)
+    const struct = fromZodV3(zodObj)
     expect(struct.descriptor.kind).toBe('struct')
 
     const res = struct.parse({ name: 'Potion', price: 50 })
@@ -71,24 +71,24 @@ describe('Zod Bridge Interoperability', () => {
     }
   })
 
-  it('preserves refinements and transforms in fromZod(ZodEffects)', () => {
+  it('preserves refinements and transforms in fromZodV3(ZodEffects)', () => {
     const refinedZod = z.string().refine((val) => val.startsWith('prefix_'), {
       message: 'Must start with prefix_',
     })
-    const structRefined = fromZod(refinedZod)
+    const structRefined = fromZodV3(refinedZod)
     expect(structRefined.safeParse('prefix_valid').success).toBe(true)
     const failRefine = structRefined.safeParse('invalid')
     expect(failRefine.success).toBe(false)
     expect(failRefine.issues?.[0]?.message).toBe('Must start with prefix_')
 
     const transformedZod = z.string().transform((val) => val.toUpperCase())
-    const structTransformed = fromZod(transformedZod)
+    const structTransformed = fromZodV3(transformedZod)
     expect(structTransformed.parse('hello')).toBe('HELLO')
   })
 
-  it('handles exclusive bounds for z.bigint().positive() and z.date() in fromZod', () => {
+  it('handles exclusive bounds for z.bigint().positive() and z.date() in fromZodV3', () => {
     const positiveBigInt = z.bigint().positive()
-    const structBigInt = fromZod(positiveBigInt)
+    const structBigInt = fromZodV3(positiveBigInt)
     expect(structBigInt.safeParse(1n).success).toBe(true)
     expect(structBigInt.safeParse(0n).success).toBe(false)
     expect(structBigInt.safeParse(-1n).success).toBe(false)
@@ -98,7 +98,7 @@ describe('Zod Bridge Interoperability', () => {
     ;(exclusiveDate as any)._def.checks = [
       { kind: 'min', value: minDate.getTime(), inclusive: false },
     ]
-    const structDate = fromZod(exclusiveDate)
+    const structDate = fromZodV3(exclusiveDate)
     expect(structDate.safeParse(new Date('2026-01-02T00:00:00.000Z')).success).toBe(true)
     expect(structDate.safeParse(minDate).success).toBe(false)
   })

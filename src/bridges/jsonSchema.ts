@@ -13,8 +13,32 @@ import { ArraySchema } from '../builders/array'
 import { RecordSchema } from '../builders/record'
 import { EnumSchema, LiteralSchema } from '../builders/enum'
 import { UnionSchema, TupleSchema } from '../builders/union'
+import { applyNumberBounds, type Bound } from './numberBounds'
 
 export { toJSONSchema } from './toJSONSchema'
+
+/**
+ * Applies `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum` and `multipleOf`.
+ * The exclusive keywords are numbers in JSON Schema 2020-12 (what Zod 4 writes for `.positive()`, `.gt()`) and booleans
+ * that modify `minimum` / `maximum` in draft 4; both are read.
+ */
+function applyNumberKeywords(
+  builder: NumberSchema<any>,
+  jsonSchema: Record<string, unknown>,
+): NumberSchema<any> {
+  const { minimum, maximum, exclusiveMinimum, exclusiveMaximum, multipleOf } = jsonSchema
+  const lowers: Bound[] = []
+  const uppers: Bound[] = []
+
+  if (typeof minimum === 'number') lowers.push({ value: minimum, inclusive: exclusiveMinimum !== true })
+  if (typeof maximum === 'number') uppers.push({ value: maximum, inclusive: exclusiveMaximum !== true })
+  if (typeof exclusiveMinimum === 'number') lowers.push({ value: exclusiveMinimum, inclusive: false })
+  if (typeof exclusiveMaximum === 'number') uppers.push({ value: exclusiveMaximum, inclusive: false })
+
+  builder = applyNumberBounds(builder, lowers, uppers)
+  if (typeof multipleOf === 'number') builder = builder.step(multipleOf)
+  return builder
+}
 
 /**
  * Dispatch map converting JSON Schema primary types to Struct BaseSchema instances.
@@ -36,23 +60,10 @@ const FROM_JSON_SCHEMA_TYPE_HANDLERS: Record<
     return strBuilder
   },
 
-  number: (jsonSchema) => {
-    let numBuilder = new NumberSchema()
-    if (typeof jsonSchema.minimum === 'number') numBuilder = numBuilder.min(jsonSchema.minimum)
-    if (typeof jsonSchema.maximum === 'number') numBuilder = numBuilder.max(jsonSchema.maximum)
-    if (typeof jsonSchema.multipleOf === 'number')
-      numBuilder = numBuilder.step(jsonSchema.multipleOf)
-    return numBuilder
-  },
+  number: (jsonSchema) => applyNumberKeywords(new NumberSchema(), jsonSchema),
 
-  integer: (jsonSchema) => {
-    let intBuilder = new NumberSchema({ integer: true, kind: 'integer' })
-    if (typeof jsonSchema.minimum === 'number') intBuilder = intBuilder.min(jsonSchema.minimum)
-    if (typeof jsonSchema.maximum === 'number') intBuilder = intBuilder.max(jsonSchema.maximum)
-    if (typeof jsonSchema.multipleOf === 'number')
-      intBuilder = intBuilder.step(jsonSchema.multipleOf)
-    return intBuilder
-  },
+  integer: (jsonSchema) =>
+    applyNumberKeywords(new NumberSchema({ integer: true, kind: 'integer' }), jsonSchema),
 
   boolean: () => new BooleanSchema(),
 

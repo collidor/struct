@@ -3,14 +3,14 @@ import { z } from 'zod'
 import {
   s,
   toZod,
-  fromZod,
+  fromZodV3,
   isAssignable,
   getAxonDataType,
   type StructValidationError,
 } from '../src'
 
 describe('Interop Bridges Hardening & Subtyping', () => {
-  describe('fromZod Constraint Extraction', () => {
+  describe('fromZodV3 Constraint Extraction', () => {
     it('extracts string checks (min, max, length, email, url, uuid, datetime, regex, trim, casing)', () => {
       const zodString = z
         .string()
@@ -21,7 +21,7 @@ describe('Interop Bridges Hardening & Subtyping', () => {
         .trim()
         .toLowerCase()
 
-      const structSchema = fromZod(zodString)
+      const structSchema = fromZodV3(zodString)
       const desc = structSchema.descriptor
 
       expect(desc.kind).toBe('string')
@@ -49,7 +49,7 @@ describe('Interop Bridges Hardening & Subtyping', () => {
         .max(100, 'Max 100')
         .multipleOf(5, 'Must be multiple of 5')
 
-      const structSchema = fromZod(zodNum)
+      const structSchema = fromZodV3(zodNum)
       const desc = structSchema.descriptor
 
       expect(desc.kind).toBe('integer')
@@ -65,7 +65,7 @@ describe('Interop Bridges Hardening & Subtyping', () => {
 
     it('extracts number gt and lt exclusive checks via refinements', () => {
       const zodExclusive = z.number().gt(0, 'Must be > 0').lt(10, 'Must be < 10')
-      const structSchema = fromZod(zodExclusive)
+      const structSchema = fromZodV3(zodExclusive)
 
       expect(structSchema.safeParse(5).success).toBe(true)
       expect(structSchema.safeParse(0).success).toBe(false)
@@ -77,7 +77,7 @@ describe('Interop Bridges Hardening & Subtyping', () => {
       const maxDate = new Date('2025-12-31T23:59:59Z')
 
       const zodDate = z.date().min(minDate, 'Too early').max(maxDate, 'Too late')
-      const structSchema = fromZod(zodDate)
+      const structSchema = fromZodV3(zodDate)
 
       expect(structSchema.descriptor.kind).toBe('date')
       expect(structSchema.safeParse(new Date('2023-06-15')).success).toBe(true)
@@ -87,7 +87,7 @@ describe('Interop Bridges Hardening & Subtyping', () => {
 
     it('extracts ZodBigInt with min, max, and multipleOf constraints', () => {
       const zodBigInt = z.bigint().min(10n, 'Min 10n').max(1000n, 'Max 1000n').multipleOf(10n)
-      const structSchema = fromZod(zodBigInt)
+      const structSchema = fromZodV3(zodBigInt)
 
       expect(structSchema.descriptor.kind).toBe('bigint')
       expect(structSchema.safeParse(50n).success).toBe(true)
@@ -98,7 +98,7 @@ describe('Interop Bridges Hardening & Subtyping', () => {
 
     it('extracts ZodTuple with heterogeneous item schemas', () => {
       const zodTuple = z.tuple([z.string().min(2), z.number().int(), z.boolean()])
-      const structSchema = fromZod(zodTuple)
+      const structSchema = fromZodV3(zodTuple)
 
       expect(structSchema.descriptor.kind).toBe('tuple')
       expect(structSchema.safeParse(['ab', 42, true]).success).toBe(true)
@@ -109,7 +109,7 @@ describe('Interop Bridges Hardening & Subtyping', () => {
 
     it('extracts ZodArray length constraints and unwraps ZodEffects', () => {
       const zodArr = z.array(z.string()).min(2, 'Min 2 items').max(5, 'Max 5 items')
-      const structArr = fromZod(zodArr)
+      const structArr = fromZodV3(zodArr)
 
       expect(structArr.descriptor.minItems).toBe(2)
       expect(structArr.descriptor.maxItems).toBe(5)
@@ -118,16 +118,16 @@ describe('Interop Bridges Hardening & Subtyping', () => {
 
       // ZodEffects (.refine)
       const zodRefined = z.string().refine((val) => val.startsWith('prefix_'))
-      const structRefined = fromZod(zodRefined)
+      const structRefined = fromZodV3(zodRefined)
       expect(structRefined.descriptor.kind).toBe('string')
     })
 
     it('preserves coercion flags from z.coerce.*', () => {
-      expect(fromZod(z.coerce.string()).descriptor.coerce).toBe(true)
-      expect(fromZod(z.coerce.number()).descriptor.coerce).toBe(true)
-      expect(fromZod(z.coerce.boolean()).descriptor.coerce).toBe(true)
-      expect(fromZod(z.coerce.date()).descriptor.coerce).toBe(true)
-      expect(fromZod(z.coerce.bigint()).descriptor.coerce).toBe(true)
+      expect(fromZodV3(z.coerce.string()).descriptor.coerce).toBe(true)
+      expect(fromZodV3(z.coerce.number()).descriptor.coerce).toBe(true)
+      expect(fromZodV3(z.coerce.boolean()).descriptor.coerce).toBe(true)
+      expect(fromZodV3(z.coerce.date()).descriptor.coerce).toBe(true)
+      expect(fromZodV3(z.coerce.bigint()).descriptor.coerce).toBe(true)
     })
   })
 

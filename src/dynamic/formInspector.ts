@@ -173,6 +173,13 @@ export function inferWidget(desc: TypeDescriptor): {
       if (numDesc.max !== undefined && props.max === undefined) props.max = numDesc.max
       if (numDesc.step !== undefined && props.step === undefined) props.step = numDesc.step
     }
+    // A named widget (every EnumSchema names 'select') still needs the values to choose from.
+    if (desc.kind === 'enum' && props.options === undefined) {
+      props.options = formatEnumOptions(desc as EnumDescriptor)
+    }
+    if (desc.kind === 'array' && desc.items?.kind === 'enum' && props.options === undefined) {
+      props.options = formatEnumOptions(desc.items as EnumDescriptor)
+    }
     return { widget: meta.widget, props }
   }
 

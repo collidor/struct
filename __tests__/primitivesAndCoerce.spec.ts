@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
-import { s, toJSONSchema, toZod, fromZod } from '../src/index'
+import { s, toJSONSchema, toZod, fromZodV3 } from '../src/index'
 
 describe('Ticket 003: Primitives Date, BigInt, and Coercion', () => {
   describe('s.date()', () => {
@@ -174,11 +174,11 @@ describe('Ticket 003: Primitives Date, BigInt, and Coercion', () => {
       const zodBigInt = toZod(s.bigint().descriptor)
       expect(zodBigInt.safeParse(123n).success).toBe(true)
 
-      const structDate = fromZod(z.date())
+      const structDate = fromZodV3(z.date())
       expect(structDate.descriptor.kind).toBe('date')
       expect(structDate.safeParse(new Date()).success).toBe(true)
 
-      const structBigInt = fromZod(z.bigint())
+      const structBigInt = fromZodV3(z.bigint())
       expect(structBigInt.descriptor.kind).toBe('bigint')
       expect(structBigInt.safeParse(123n).success).toBe(true)
     })

@@ -33,6 +33,8 @@ type ToZodHandlers = {
  * Dispatch map converting Struct TypeDescriptors to Zod schema instances.
  */
 function applyNumberBounds(num: z.ZodNumber, descriptor: NumberDescriptor): z.ZodNumber {
+  // A struct number is finite. Zod 4 already is; Zod 3 accepts +-Infinity unless asked not to.
+  num = num.finite()
   if (descriptor.min !== undefined) num = num.min(descriptor.min, descriptor.messages?.min)
   if (descriptor.max !== undefined) num = num.max(descriptor.max, descriptor.messages?.max)
   if (descriptor.step !== undefined) num = num.step(descriptor.step, descriptor.messages?.step)

@@ -77,7 +77,6 @@ export class LiteralSchema<
     super({
       kind: 'literal',
       value,
-      default: value,
       ...descriptor,
     } as LiteralDescriptor)
 
@@ -102,7 +101,8 @@ export class LiteralSchema<
       }
     }
 
-    return { value: this.value }
+    // The value that was given, as Zod returns it: `-0` is a valid `0`, and stays `-0`.
+    return { value: value as TValue }
   }
 
   protected override _clone(): this {

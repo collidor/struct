@@ -5,7 +5,7 @@ Modular data structure builder with Standard Schema compliance, JSON Schema / Zo
 ## Features
 
 - 📐 **Standard Schema V1 Compliant**: Works directly with modern form, validation, and API libraries.
-- 🔄 **Bidirectional Bridges**: Lossless interop with **Zod** (`toZod`, `fromZod`) and **JSON Schema** (`toJSONSchema`, `fromJSONSchema`).
+- 🔄 **Bidirectional Bridges**: Interop with **Zod 3 and 4** (`toZod`, `fromZod`, `fromZodV3`) and **JSON Schema** (`toJSONSchema`, `fromJSONSchema`).
 - ⚡ **Axon Port Subtyping**: Complete graph data type descriptor mapping and subtype compatibility checker (`isAssignable`).
 - 📝 **Dynamic UI Form Generation**: Automated field layout, widget inference, and interactive form builder (`StructBuilder`, `getFormFields`).
 - 🗄️ **Storage & DDL Migrations**: Schema DDL generation and transactional migrations for SQLite/SQL backends.
@@ -106,19 +106,41 @@ const controller = f.createController(OnboardingForm, {
 ## Zod & JSON Schema Interop
 
 ```typescript
-import { s, toZod, fromZod, toJSONSchema, fromJSONSchema } from "@collidor/struct";
-import { z } from "zod";
+import { s, toZod, fromZod, fromZodV3, toJSONSchema, fromJSONSchema } from "@collidor/struct";
+import { z } from "zod/v4"; // or "zod" 4.x
 
 // Convert struct to Zod
 const zodUser = toZod(UserSchema);
 
-// Convert Zod to struct
+// Convert a Zod 4 schema to struct
 const zodSchema = z.object({ count: z.number().int().positive() });
 const structFromZod = fromZod(zodSchema);
 
-// JSON Schema export
+// JSON Schema export and import
 const jsonSchema = toJSONSchema(UserSchema);
+const structFromJson = fromJSONSchema(jsonSchema);
 ```
+
+### Which `fromZod`
+
+Zod 4 rewrote the internals the converters read, so there is one reader for each major version and each refuses the other's schemas
+(a `TypeError` that names the right one) instead of converting them wrongly:
+
+| Zod | Reader | Reads |
+| --- | --- | --- |
+| 4 (`zod` 4.x, `zod/v4`, `zod/mini`) | `fromZod` | `schema._zod.def` |
+| 3 (`zod` 3.x) | `fromZodV3` | `schema._def` |
+
+> **Upgrading:** `fromZod` used to read Zod 3 schemas. Rename existing calls on Zod 3 schemas to `fromZodV3`.
+
+What the struct cannot express is dropped rather than guessed: a tuple's rest element, an intersection of anything but two objects (the
+left side is kept), the type of a `catchall` (any catchall becomes `passthrough`), and a function default (evaluated once, at conversion).
+A struct also has a single `min` and `max`, so when a schema states several (`.min(5).min(1)`), the strictest one is kept, as in Zod.
+
+Where a struct and Zod 4 could differ, they match: a number is finite (`NaN` and `±Infinity` are invalid), an optional field that was not
+given is left out of the output instead of being returned as `key: undefined`, and a literal has no default of its own (a missing value is
+invalid, and `.default(value)` is how to fill one in). Zod 3 is the exception: it accepts `Infinity` as a number, so `fromZodV3` cannot
+carry that over.
 
 ## License
 

@@ -56,7 +56,7 @@ describe('Ticket 002: Safe Descriptor Cloning and Error Formatting', () => {
       const optLit = lit.optional().label('Status')
 
       expect(optLit.value).toBe('active')
-      expect(optLit.descriptor.default).toBe('active')
+      expect(optLit.descriptor.default).toBeUndefined()
       expect(optLit.safeParse('active').success).toBe(true)
       expect(optLit.safeParse('inactive').success).toBe(false)
       expect(optLit.safeParse(undefined).success).toBe(true)

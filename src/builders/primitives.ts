@@ -319,15 +319,16 @@ export class NumberSchema<TInput = number> extends BaseSchema<TInput, number> {
       }
     }
 
-    if (typeof numVal !== 'number' || Number.isNaN(numVal)) {
+    // Like Zod 4, a number is a finite one: NaN and +-Infinity are not valid (JSON cannot carry them either).
+    if (typeof numVal !== 'number' || !Number.isFinite(numVal)) {
       return {
         issues: [
           {
             path,
-            message: `Expected number, received ${numVal === null ? 'null' : typeof numVal}`,
+            message: `Expected number, received ${numVal === null ? 'null' : typeof numVal === 'number' ? String(numVal) : typeof numVal}`,
             code: 'invalid_type',
             expected: 'number',
-            received: typeof numVal,
+            received: typeof numVal === 'number' ? String(numVal) : typeof numVal,
           },
         ],
       }

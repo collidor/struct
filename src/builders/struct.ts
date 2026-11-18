@@ -101,7 +101,8 @@ export class StructSchema<
       const fieldValidation = fieldSchema._validateWithRefinements(valObj[key], fieldPath)
       if (fieldValidation.issues && fieldValidation.issues.length > 0) {
         issues.push(...fieldValidation.issues)
-      } else {
+      } else if (fieldValidation.value !== undefined || key in valObj) {
+        // Like Zod, an optional field that was not given is left out, not returned as `key: undefined`.
         result[key] = fieldValidation.value
       }
     }
@@ -134,7 +135,8 @@ export class StructSchema<
       const fieldValidation = await fieldSchema._validateWithRefinementsAsync(valObj[key], fieldPath)
       if (fieldValidation.issues && fieldValidation.issues.length > 0) {
         issues.push(...fieldValidation.issues)
-      } else {
+      } else if (fieldValidation.value !== undefined || key in valObj) {
+        // Like Zod, an optional field that was not given is left out, not returned as `key: undefined`.
         result[key] = fieldValidation.value
       }
     }

@@ -164,9 +164,19 @@ export function toJSONSchema(
     descriptor: TypeDescriptor,
     result: Record<string, unknown>,
   ) => void
-  if (handler) {
-    handler(descriptor, result)
+  if (!handler) return result
+
+  // These kinds have no `type` to widen to `[type, 'null']`, so a nullable one says "or null" with a union instead.
+  if (descriptor.nullable && KINDS_WITHOUT_NULLABLE_TYPE.has(descriptor.kind)) {
+    const body: Record<string, unknown> = {}
+    handler(descriptor, body)
+    result.anyOf = [body, { type: 'null' }]
+    return result
   }
+
+  handler(descriptor, result)
 
   return result
 }
+
+const KINDS_WITHOUT_NULLABLE_TYPE: ReadonlySet<TypeKind> = new Set(['enum', 'literal', 'union'])

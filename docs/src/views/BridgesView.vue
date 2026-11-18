@@ -23,7 +23,7 @@ if ('value' in result) {
 }`
 
 const zodBridgeSnippet = `import { s } from '@collidor/struct'
-import { toZod, fromZod } from '@collidor/struct/bridges/zod'
+import { toZod, fromZodV3 } from '@collidor/struct/bridges/zod'
 import { z } from 'zod'
 
 // 1. Convert @collidor/struct to Zod
@@ -42,7 +42,7 @@ const originalZod = z.object({
   tags: z.array(z.string())
 })
 
-const convertedStruct = fromZod(originalZod)
+const convertedStruct = fromZodV3(originalZod)
 // Ready for use with Axon, JSON Schema, or @collidor/ui!`
 
 const jsonSchemaSnippet = `import { s } from '@collidor/struct'
@@ -107,7 +107,8 @@ console.log(isAssignable(basicUser, detailedUser)) // false`
   <section id="zod-bridge" class="docs-section">
     <h2>Zod Bridge</h2>
     <p>
-      Seamlessly interoperate with existing codebases using Zod. The bridge provides full bidirectional conversion:
+      Seamlessly interoperate with existing codebases using Zod. The bridge converts in both directions:
+      <code>fromZod</code> reads Zod 4 schemas and <code>fromZodV3</code> reads Zod 3 ones, and each refuses the other's.
     </p>
     <CodeBlock title="zod-bridge.ts" language="typescript" :code="zodBridgeSnippet" />
   </section>

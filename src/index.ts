@@ -38,7 +38,7 @@ export { getFormFields, inferWidget, type FormFieldDescriptor } from './dynamic/
 
 // 5. Interoperability Bridges
 export { toJSONSchema, fromJSONSchema } from './bridges/jsonSchema'
-export { toZod, fromZod } from './bridges/zod'
+export { toZod, fromZod, fromZodV3, type ZodV4Schema } from './bridges/zod'
 export { toAxonPort, isAssignable, getAxonDataType, type AxonPortContract } from './bridges/axon'
 export { toVeeValidateSchema, type TypedSchema } from './bridges/veeValidate'
 
