@@ -125,6 +125,9 @@ const TO_JSON_SCHEMA_HANDLERS: ToJSONSchemaHandlers = {
 
   union: (desc: UnionDescriptor, result) => {
     result.oneOf = desc.variants.map(toJSONSchema)
+    if (desc.discriminator) {
+      result.discriminator = { propertyName: desc.discriminator }
+    }
   },
 
   tuple: (desc: TupleDescriptor, result) => {

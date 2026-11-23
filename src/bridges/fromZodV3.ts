@@ -14,7 +14,11 @@ import { StructSchema } from '../builders/struct'
 import { ArraySchema } from '../builders/array'
 import { RecordSchema } from '../builders/record'
 import { EnumSchema, LiteralSchema } from '../builders/enum'
-import { UnionSchema, TupleSchema } from '../builders/union'
+import {
+  UnionSchema,
+  TupleSchema,
+  createUnionOrDiscriminated,
+} from '../builders/union'
 import { applyNumberBounds, strictestLower, strictestUpper, type Bound } from './numberBounds'
 
 /**
@@ -226,7 +230,10 @@ const FROM_ZOD_V3_HANDLERS: Record<string, (def: any) => BaseSchema<any, any>> =
   ZodRecord: (def: any) => new RecordSchema(fromZodV3(def.valueType || z.any())),
   ZodUnion: (def: any) => new UnionSchema((def.options || []).map((o: any) => fromZodV3(o))),
   ZodDiscriminatedUnion: (def: any) =>
-    new UnionSchema((def.options || []).map((o: any) => fromZodV3(o))),
+    createUnionOrDiscriminated(
+      (def.options || []).map((o: any) => fromZodV3(o)),
+      def.discriminator,
+    ),
   // In Zod 3 an outer `.optional()` returns `undefined` before an inner `.default()` is asked, so the default never applies.
   // The struct keeps one flat default, which would win, so the inner default is left out here.
   ZodOptional: (def: any) => {

@@ -13,7 +13,11 @@ import { StructSchema } from '../builders/struct'
 import { ArraySchema } from '../builders/array'
 import { RecordSchema } from '../builders/record'
 import { EnumSchema, LiteralSchema } from '../builders/enum'
-import { UnionSchema, TupleSchema } from '../builders/union'
+import {
+  UnionSchema,
+  TupleSchema,
+  createUnionOrDiscriminated,
+} from '../builders/union'
 import { applyNumberBounds, strictestLower, strictestUpper, type Bound } from './numberBounds'
 
 /**
@@ -342,7 +346,8 @@ const FROM_ZOD_V4_HANDLERS: Record<string, Handler> = {
     return new UnionSchema(values.map((value) => new LiteralSchema(value as any)))
   },
 
-  union: (def, convert) => new UnionSchema((def.options ?? []).map(convert)),
+  union: (def, convert) =>
+    createUnionOrDiscriminated((def.options ?? []).map(convert), def.discriminator),
 
   record: (def, convert) => new RecordSchema(convert(def.valueType)),
 

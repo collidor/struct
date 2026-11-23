@@ -12,7 +12,10 @@ import { StructSchema } from '../builders/struct'
 import { ArraySchema } from '../builders/array'
 import { RecordSchema } from '../builders/record'
 import { EnumSchema, LiteralSchema } from '../builders/enum'
-import { UnionSchema, TupleSchema } from '../builders/union'
+import {
+  TupleSchema,
+  createUnionOrDiscriminated,
+} from '../builders/union'
 import { applyNumberBounds, type Bound } from './numberBounds'
 
 export { toJSONSchema } from './toJSONSchema'
@@ -136,8 +139,12 @@ export function fromJSONSchema(jsonSchema: Record<string, unknown>): BaseSchema<
   }
   // Handle union (anyOf / oneOf)
   else if (Array.isArray(jsonSchema.oneOf) || Array.isArray(jsonSchema.anyOf)) {
-    const variants = (jsonSchema.oneOf || jsonSchema.anyOf) as Record<string, unknown>[]
-    schema = new UnionSchema(variants.map(fromJSONSchema))
+    const variants = ((jsonSchema.oneOf || jsonSchema.anyOf) as Record<string, unknown>[]).map(
+      fromJSONSchema,
+    )
+    const rawDisc = jsonSchema.discriminator as { propertyName?: string } | string | undefined
+    const discriminator = typeof rawDisc === 'string' ? rawDisc : rawDisc?.propertyName
+    schema = createUnionOrDiscriminated(variants, discriminator)
   }
   // Handle primitives and structures based on type
   else {

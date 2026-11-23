@@ -8,7 +8,7 @@ Modular data structure builder with Standard Schema compliance, JSON Schema / Zo
 - 🔄 **Bidirectional Bridges**: Interop with **Zod 3 and 4** (`toZod`, `fromZod`, `fromZodV3`) and **JSON Schema** (`toJSONSchema`, `fromJSONSchema`).
 - ⚡ **Axon Port Subtyping**: Complete graph data type descriptor mapping and subtype compatibility checker (`isAssignable`).
 - 📝 **Dynamic UI Form Generation**: Automated field layout, widget inference, and interactive form builder (`StructBuilder`, `getFormFields`).
-- 🗄️ **Storage & DDL Migrations**: Schema DDL generation and transactional migrations for SQLite/SQL backends.
+- 🗄️ **Storage & DDL Migrations**: Schema DDL generation (including normalized main + leaf tables for discriminated unions via `generateDiscriminatedUnionDDL` and `generateSchemaDDL`) and transactional migrations for SQLite/PostgreSQL backends.
 - 🧮 **Computed Properties**: Safe in-memory formula evaluation with AST dependency topological resolution.
 
 ## Installation
@@ -53,6 +53,35 @@ if (result.success) {
 } else {
   console.error("Validation issues:", result.issues);
 }
+```
+
+## Enums, Literals & Discriminated Unions
+
+`EnumSchema` and `LiteralSchema` interoperate seamlessly, and `s.discriminatedUnion` provides O(1) discriminator dispatch (also available on `f.discriminatedUnion` and round-tripped through Zod, JSON Schema, and SQL DDL):
+
+```typescript
+import { s, generateDiscriminatedUnionDDL } from "@collidor/struct";
+
+// Enums accept primitives or literals and expose literal helpers
+const Status = s.enum(["draft", "published", "archived"] as const);
+const DraftLiteral = Status.literals.draft; // LiteralSchema<"draft">
+const SingleEnum = s.literal("ACTIVE").toEnum(); // EnumSchema<readonly ["ACTIVE"]>
+
+// Array-form discriminated union
+const Event = s.discriminatedUnion("type", [
+  s.struct({ type: s.literal("click"), x: s.number(), y: s.number() }),
+  s.struct({ type: s.literal("keypress"), key: s.string() }),
+]);
+
+// Exhaustive enum-driven discriminated union (auto-injects discriminator literals)
+const EventType = s.enum(["click", "keypress"] as const);
+const ExhaustiveEvent = EventType.discriminatedUnion("type", {
+  click: { x: s.number(), y: s.number() },
+  keypress: s.struct({ key: s.string() }),
+});
+
+// Normalized SQL DDL (main table + per-variant leaf tables with composite FK)
+const ddlStatements = generateDiscriminatedUnionDDL("events", Event, { dialect: "postgres" });
 ```
 
 ## Unified Form Builder (`@collidor/struct/form`)

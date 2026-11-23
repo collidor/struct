@@ -15,8 +15,32 @@ export {
 export { StructSchema } from './builders/struct'
 export { ArraySchema } from './builders/array'
 export { RecordSchema } from './builders/record'
-export { EnumSchema, LiteralSchema } from './builders/enum'
-export { UnionSchema, TupleSchema } from './builders/union'
+export {
+  EnumSchema,
+  LiteralSchema,
+  type EnumPrimitive,
+  type EnumLiteralInput,
+  type EnumInputItem,
+  type UnwrapEnumValue,
+  type UnwrapEnumValues,
+  type EnumLiteralsMap,
+  type EnumLiteralsTuple,
+} from './builders/enum'
+export {
+  UnionSchema,
+  DiscriminatedUnionSchema,
+  TupleSchema,
+  type DiscriminatorValue,
+  type DiscriminatorFieldSchema,
+  type DiscriminatedVariant,
+  type VariantDiscriminatorValue,
+  type DiscriminatorValuesOf,
+  type EnumVariantEntry,
+  type EnumVariantMap,
+  type NormalizedEnumVariantShape,
+  type NormalizeEnumVariant,
+  type EnumVariantsTuple,
+} from './builders/union'
 export { TransformSchema, PipeSchema, type TransformFn } from './builders/transform'
 
 export {
@@ -50,6 +74,8 @@ export { cloneDescriptor } from './utils/clone'
 export {
   generateBaseTablesDDL,
   generateStructDDL,
+  generateDiscriminatedUnionDDL,
+  generateSchemaDDL,
   formatColumnDefinition,
   getStructTableName,
   typeDescriptorToSQLType,

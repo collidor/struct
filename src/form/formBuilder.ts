@@ -74,6 +74,7 @@ export const f = {
   enum: s.enum,
   literal: s.literal,
   union: s.union,
+  discriminatedUnion: s.discriminatedUnion,
   tuple: s.tuple,
   record: s.record,
   pipe: s.pipe,

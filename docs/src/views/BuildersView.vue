@@ -75,17 +75,31 @@ const coordinates = s.tuple([
 // Key-Value Dictionary Records
 const scores = s.record(s.string(), s.number())`
 
-const unionsSnippet = `// Strict string enums
+const unionsSnippet = `// Strict enums (accepts primitives or LiteralSchema items)
 const Status = s.enum(['draft', 'published', 'archived'] as const)
 
-// Literal singletons
-const ActiveLiteral = s.literal('ACTIVE')
+// Interop between enums and literals
+const DraftLiteral = Status.literals.draft        // LiteralSchema<'draft'>
+const PublishedLiteral = Status.literal('published')
+const SingleEnum = s.literal('ACTIVE').toEnum()   // EnumSchema<readonly ['ACTIVE']>
 
-// Discriminated / Untagged Unions
-const Event = s.union([
+// Discriminated union (O(1) lookup by discriminator key)
+const Event = s.discriminatedUnion('type', [
   s.struct({ type: s.literal('click'), x: s.number(), y: s.number() }),
-  s.struct({ type: s.literal('keypress'), key: s.string() })
-])`
+  s.struct({ type: s.literal('keypress'), key: s.string() }),
+])
+const clickVariant = Event.getVariant('click')
+
+// Exhaustive enum-driven discriminated union (auto-injects missing discriminator literals)
+const EventType = s.enum(['click', 'keypress'] as const)
+const ExhaustiveEvent = EventType.discriminatedUnion('type', {
+  click: { x: s.number(), y: s.number() },
+  keypress: s.struct({ key: s.string() }),
+})
+// Equivalent: s.discriminatedUnion('type', EventType, { ... })
+
+// Untagged union (tries variants in order)
+const StringOrNumber = s.union([s.string(), s.number()])`
 
 const modifiersSnippet = `// Custom Business Rules (.refine)
 const PasswordForm = s.struct({
@@ -143,7 +157,10 @@ const TitleField = s.string()
 
   <section id="unions" class="docs-section">
     <h2>Enums, Literals &amp; Unions</h2>
-    <p>Represent strict enumerations, literal constants, and discriminated unions:</p>
+    <p>
+      Represent strict enumerations, literal constants, O(1) discriminated unions (from variant arrays or exhaustively from an <code>EnumSchema</code>),
+      and untagged unions:
+    </p>
     <CodeBlock title="unions.ts" language="typescript" :code="unionsSnippet" />
   </section>
 
