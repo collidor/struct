@@ -83,11 +83,14 @@ const DraftLiteral = Status.literals.draft        // LiteralSchema<'draft'>
 const PublishedLiteral = Status.literal('published')
 const SingleEnum = s.literal('ACTIVE').toEnum()   // EnumSchema<readonly ['ACTIVE']>
 
-// Discriminated union (O(1) lookup by discriminator key)
-const Event = s.discriminatedUnion('type', [
-  s.struct({ type: s.literal('click'), x: s.number(), y: s.number() }),
-  s.struct({ type: s.literal('keypress'), key: s.string() }),
-])
+// Discriminated union: 2nd arg is typesafe & autocompletes shared Literal/Enum keys
+const Event = s.oneOf(
+  [
+    s.struct({ type: s.literal('click'), x: s.number(), y: s.number() }),
+    s.struct({ type: s.literal('keypress'), key: s.string() }),
+  ],
+  'type',
+)
 const clickVariant = Event.getVariant('click')
 
 // Exhaustive enum-driven discriminated union (auto-injects missing discriminator literals)
@@ -96,10 +99,9 @@ const ExhaustiveEvent = EventType.discriminatedUnion('type', {
   click: { x: s.number(), y: s.number() },
   keypress: s.struct({ key: s.string() }),
 })
-// Equivalent: s.discriminatedUnion('type', EventType, { ... })
 
-// Untagged union (tries variants in order)
-const StringOrNumber = s.union([s.string(), s.number()])`
+// Untagged union (omit 2nd arg — tries variants in order)
+const StringOrNumber = s.oneOf([s.string(), s.number()])`
 
 const modifiersSnippet = `// Custom Business Rules (.refine)
 const PasswordForm = s.struct({

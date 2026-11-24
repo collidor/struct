@@ -365,7 +365,7 @@ function buildPresetSchema(id: string) {
     return s.struct({
       nodeId: s.string().min(1),
       channel: s.string().toLowerCase(),
-      payload: s.union([
+      payload: s.oneOf([
         s.string(),
         s.number(),
         s.struct({ signal: s.string(), value: s.number() }),

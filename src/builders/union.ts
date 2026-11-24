@@ -20,6 +20,21 @@ export type DiscriminatedVariant<TDiscriminator extends string = string> = BaseS
   readonly shape: Record<TDiscriminator, DiscriminatorFieldSchema>
 }
 
+export type VariantDiscriminatorKeys<TVariant> = TVariant extends {
+  readonly shape: infer TShape extends Record<string, BaseSchema<any, any>>
+}
+  ? {
+      [K in keyof TShape & string]: TShape[K] extends DiscriminatorFieldSchema ? K : never
+    }[keyof TShape & string]
+  : never
+
+export type CommonDiscriminatorKeys<TVariants extends readonly BaseSchema<any, any>[]> =
+  TVariants extends readonly [infer Head, ...infer Tail extends readonly BaseSchema<any, any>[]]
+    ? Tail extends readonly []
+      ? VariantDiscriminatorKeys<Head>
+      : VariantDiscriminatorKeys<Head> & CommonDiscriminatorKeys<Tail>
+    : never
+
 export type VariantDiscriminatorValue<TDiscriminator extends string, TVariant> = TVariant extends {
   readonly shape: Record<TDiscriminator, infer TField>
 }

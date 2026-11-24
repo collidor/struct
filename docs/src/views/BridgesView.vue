@@ -27,10 +27,13 @@ import { toZod, fromZod, fromZodV3 } from '@collidor/struct/bridges/zod'
 import { z } from 'zod'
 
 // 1. Convert @collidor/struct to Zod (including discriminated unions)
-const EventSchema = s.discriminatedUnion('type', [
-  s.struct({ type: s.literal('click'), x: s.number(), y: s.number() }),
-  s.struct({ type: s.literal('keypress'), key: s.string() }),
-])
+const EventSchema = s.oneOf(
+  [
+    s.struct({ type: s.literal('click'), x: s.number(), y: s.number() }),
+    s.struct({ type: s.literal('keypress'), key: s.string() }),
+  ],
+  'type',
+)
 
 const zodEvent = toZod(EventSchema)
 // Produces z.discriminatedUnion('type', [...]) preserving all constraints!
@@ -48,10 +51,13 @@ const convertedStruct = fromZodV3(originalZod)
 const jsonSchemaSnippet = `import { s } from '@collidor/struct'
 import { toJSONSchema, fromJSONSchema } from '@collidor/struct/bridges/jsonSchema'
 
-const schema = s.discriminatedUnion('kind', [
-  s.struct({ kind: s.literal('email'), address: s.string().email() }),
-  s.struct({ kind: s.literal('sms'), phone: s.string() }),
-])
+const schema = s.oneOf(
+  [
+    s.struct({ kind: s.literal('email'), address: s.string().email() }),
+    s.struct({ kind: s.literal('sms'), phone: s.string() }),
+  ],
+  'kind',
+)
 
 // Export to JSON Schema (emits oneOf + OpenAPI/JSON Schema discriminator)
 const jsonSchema = toJSONSchema(schema)

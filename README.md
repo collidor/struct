@@ -57,7 +57,7 @@ if (result.success) {
 
 ## Enums, Literals & Discriminated Unions
 
-`EnumSchema` and `LiteralSchema` interoperate seamlessly, and `s.discriminatedUnion` provides O(1) discriminator dispatch (also available on `f.discriminatedUnion` and round-tripped through Zod, JSON Schema, and SQL DDL):
+`EnumSchema` and `LiteralSchema` interoperate seamlessly, and `s.oneOf` supports both untagged unions and O(1) discriminated unions with a typesafe discriminator key as the second argument (also available on `f.oneOf` and round-tripped through Zod, JSON Schema, and SQL DDL):
 
 ```typescript
 import { s, generateDiscriminatedUnionDDL } from "@collidor/struct";
@@ -67,11 +67,14 @@ const Status = s.enum(["draft", "published", "archived"] as const);
 const DraftLiteral = Status.literals.draft; // LiteralSchema<"draft">
 const SingleEnum = s.literal("ACTIVE").toEnum(); // EnumSchema<readonly ["ACTIVE"]>
 
-// Array-form discriminated union
-const Event = s.discriminatedUnion("type", [
-  s.struct({ type: s.literal("click"), x: s.number(), y: s.number() }),
-  s.struct({ type: s.literal("keypress"), key: s.string() }),
-]);
+// Discriminated union — 2nd argument autocompletes only valid shared Literal/Enum keys
+const Event = s.oneOf(
+  [
+    s.struct({ type: s.literal("click"), x: s.number(), y: s.number() }),
+    s.struct({ type: s.literal("keypress"), key: s.string() }),
+  ],
+  "type",
+);
 
 // Exhaustive enum-driven discriminated union (auto-injects discriminator literals)
 const EventType = s.enum(["click", "keypress"] as const);
@@ -79,6 +82,9 @@ const ExhaustiveEvent = EventType.discriminatedUnion("type", {
   click: { x: s.number(), y: s.number() },
   keypress: s.struct({ key: s.string() }),
 });
+
+// Untagged union (omit the discriminator)
+const StringOrNumber = s.oneOf([s.string(), s.number()]);
 
 // Normalized SQL DDL (main table + per-variant leaf tables with composite FK)
 const ddlStatements = generateDiscriminatedUnionDDL("events", Event, { dialect: "postgres" });

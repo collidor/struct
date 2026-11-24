@@ -26,6 +26,7 @@ import {
   TupleSchema,
   createDiscriminatedUnionFromEnum,
   createUnionOrDiscriminated,
+  type CommonDiscriminatorKeys,
   type DiscriminatedVariant,
   type EnumVariantMap,
   type EnumVariantsTuple,
@@ -78,6 +79,38 @@ const createStruct: StructBuilderFn = ((
   }
   return new StructSchema(nameOrShape, shapeOrDescriptor)
 }) as StructBuilderFn
+
+export interface OneOfFn {
+  <
+    const TVariants extends readonly [BaseSchema<any, any>, ...BaseSchema<any, any>[]],
+    const TDiscriminator extends CommonDiscriminatorKeys<TVariants>,
+  >(
+    variants: TVariants,
+    discriminator: TDiscriminator,
+    descriptor?: Partial<UnionDescriptor>,
+  ): TVariants extends readonly DiscriminatedVariant<TDiscriminator>[]
+    ? DiscriminatedUnionSchema<TDiscriminator, TVariants>
+    : DiscriminatedUnionSchema<TDiscriminator, readonly DiscriminatedVariant<TDiscriminator>[]>
+  <const TVariants extends readonly BaseSchema<any, any>[]>(
+    variants: TVariants,
+    descriptor?: Partial<UnionDescriptor>,
+  ): UnionSchema<TVariants>
+}
+
+const createOneOf: OneOfFn = ((
+  variants: readonly BaseSchema<any, any>[],
+  discriminatorOrDescriptor?: string | Partial<UnionDescriptor>,
+  maybeDescriptor?: Partial<UnionDescriptor>,
+) => {
+  if (typeof discriminatorOrDescriptor === 'string') {
+    return new DiscriminatedUnionSchema(
+      discriminatorOrDescriptor,
+      variants as readonly DiscriminatedVariant<string>[],
+      maybeDescriptor,
+    )
+  }
+  return new UnionSchema(variants, discriminatorOrDescriptor)
+}) as OneOfFn
 
 export interface DiscriminatedUnionFn {
   <
@@ -193,10 +226,7 @@ export const s = {
     descriptor?: Partial<LiteralDescriptor>,
   ): LiteralSchema<TValue> => new LiteralSchema(value, descriptor),
 
-  union: <TVariants extends readonly BaseSchema<any, any>[]>(
-    variants: TVariants,
-    descriptor?: Partial<UnionDescriptor>,
-  ): UnionSchema<TVariants> => new UnionSchema(variants, descriptor),
+  oneOf: createOneOf,
 
   discriminatedUnion: createDiscriminatedUnion,
 

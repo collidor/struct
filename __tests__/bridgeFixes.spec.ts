@@ -61,7 +61,7 @@ describe('toJSONSchema: nullable enums, literals and unions', () => {
   it.each([
     ['enum', s.enum(['a', 'b']).nullable()],
     ['literal', s.literal('x').nullable()],
-    ['union', s.union([s.string(), s.number()]).nullable()],
+    ['union', s.oneOf([s.string(), s.number()]).nullable()],
   ])('should say a nullable %s may be null, and read that back', (_label, nullable) => {
     const json = toJSONSchema(nullable as never)
     expect(json['anyOf']).toContainEqual({ type: 'null' })

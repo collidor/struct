@@ -73,7 +73,7 @@ export const f = {
   coerce: s.coerce,
   enum: s.enum,
   literal: s.literal,
-  union: s.union,
+  oneOf: s.oneOf,
   discriminatedUnion: s.discriminatedUnion,
   tuple: s.tuple,
   record: s.record,

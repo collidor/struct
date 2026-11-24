@@ -41,10 +41,13 @@ const discriminatedUnionDDLSnippet = `import {
   generateSchemaDDL,
 } from '@collidor/struct'
 
-const PaymentMethod = s.discriminatedUnion('kind', [
-  s.struct({ kind: s.literal('card'), last4: s.string(), brand: s.string() }),
-  s.struct({ kind: s.literal('bank'), iban: s.string() }),
-])
+const PaymentMethod = s.oneOf(
+  [
+    s.struct({ kind: s.literal('card'), last4: s.string(), brand: s.string() }),
+    s.struct({ kind: s.literal('bank'), iban: s.string() }),
+  ],
+  'kind',
+)
 
 // Generates a main table with CHECK + UNIQUE (id, kind) and one leaf table per variant
 // linked via composite FOREIGN KEY (id, kind) REFERENCES main(id, kind) ON DELETE CASCADE
@@ -94,7 +97,7 @@ console.log(plan.operations)
     </p>
     <CodeBlock title="ddl.ts" language="typescript" :code="ddlSnippet" />
     <p>
-      For discriminated unions (<code>s.discriminatedUnion</code>), <code>generateDiscriminatedUnionDDL</code> and
+      For discriminated unions (<code>s.oneOf(variants, discriminator)</code>), <code>generateDiscriminatedUnionDDL</code> and
       <code>generateSchemaDDL</code> emit normalized main + per-variant leaf tables with composite
       <code>FOREIGN KEY (id, discriminator)</code> constraints and <code>CHECK</code> guards:
     </p>

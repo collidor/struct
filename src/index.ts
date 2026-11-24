@@ -1,5 +1,5 @@
 // 1. Fluent Builder namespace
-export { s, struct } from './builders/index'
+export { s, struct, type OneOfFn, type DiscriminatedUnionFn, type StructBuilderFn } from './builders/index'
 
 // 2. Concrete Builder Classes
 export {
@@ -33,6 +33,8 @@ export {
   type DiscriminatorValue,
   type DiscriminatorFieldSchema,
   type DiscriminatedVariant,
+  type VariantDiscriminatorKeys,
+  type CommonDiscriminatorKeys,
   type VariantDiscriminatorValue,
   type DiscriminatorValuesOf,
   type EnumVariantEntry,

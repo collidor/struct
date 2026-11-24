@@ -140,8 +140,8 @@ describe('Enum const inference and Enum <-> Literal conversions', () => {
       expect(weaponLit.parse('ItemWeapon')).toBe('ItemWeapon')
       expect(armorLit.parse('ItemArmor')).toBe('ItemArmor')
 
-      // Composes directly with s.union(...)
-      const asUnion = s.union(ItemPropertiesTypeSchema.toLiterals())
+      // Composes directly with s.oneOf(...)
+      const asUnion = s.oneOf(ItemPropertiesTypeSchema.toLiterals())
       expectTypeOf<Out<typeof asUnion>>().toEqualTypeOf<'ItemWeapon' | 'ItemArmor'>()
       expect(asUnion.parse('ItemWeapon')).toBe('ItemWeapon')
       expect(asUnion.safeParse('Other').success).toBe(false)
@@ -157,7 +157,7 @@ describe('Enum const inference and Enum <-> Literal conversions', () => {
         type: ItemPropertiesTypeSchema.literals.ItemArmor,
         defense: s.number(),
       })
-      const ItemProps = s.union([WeaponProps, ArmorProps])
+      const ItemProps = s.oneOf([WeaponProps, ArmorProps], 'type')
 
       type Props = Out<typeof ItemProps>
       expectTypeOf<Props>().toEqualTypeOf<

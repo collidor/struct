@@ -15,6 +15,71 @@ import {
 import { f } from '../src/form'
 
 describe('Discriminated Unions', () => {
+  describe('s.oneOf(variants, discriminator) typesafe discriminator selection', () => {
+    it('returns a DiscriminatedUnionSchema when given a valid discriminator key as 2nd argument', () => {
+      const ClickEvent = s.struct({ type: s.literal('click'), x: s.number(), y: s.number() })
+      const KeypressEvent = s.struct({ type: s.literal('keypress'), key: s.string() })
+
+      const EventSchema = s.oneOf([ClickEvent, KeypressEvent], 'type')
+      type Event = Out<typeof EventSchema>
+
+      expect(EventSchema).toBeInstanceOf(DiscriminatedUnionSchema)
+      expect(EventSchema.discriminator).toBe('type')
+      expect(EventSchema.discriminatorValues).toEqual(['click', 'keypress'])
+      expect(EventSchema.getVariant('click')).toBe(ClickEvent)
+      expect(EventSchema.getVariant('keypress')).toBe(KeypressEvent)
+
+      expectTypeOf<Event>().toEqualTypeOf<
+        { type: 'click'; x: number; y: number } | { type: 'keypress'; key: string }
+      >()
+
+      expect(EventSchema.parse({ type: 'click', x: 1, y: 2 })).toEqual({
+        type: 'click',
+        x: 1,
+        y: 2,
+      })
+      expect(EventSchema.safeParse({ type: 'hover' }).success).toBe(false)
+
+      // Also works via f.oneOf(...)
+      const FormEvent = f.oneOf([ClickEvent, KeypressEvent], 'type')
+      expect(FormEvent).toBeInstanceOf(DiscriminatedUnionSchema)
+      expect(FormEvent.parse({ type: 'keypress', key: 'Enter' })).toEqual({
+        type: 'keypress',
+        key: 'Enter',
+      })
+
+      // Without 2nd argument, s.oneOf returns an untagged UnionSchema
+      const Untagged = s.oneOf([s.string(), s.number()])
+      expect(Untagged).toBeInstanceOf(UnionSchema)
+      expect(Untagged).not.toBeInstanceOf(DiscriminatedUnionSchema)
+    })
+
+    it('rejects non-discriminator or non-shared keys at compile time', () => {
+      const A = s.struct({ type: s.literal('a'), version: s.enum([1, 2]), payload: s.string() })
+      const B = s.struct({ type: s.literal('b'), version: s.literal(3), count: s.number() })
+
+      // Both 'type' and 'version' are valid shared discriminator keys
+      expect(s.oneOf([A, B], 'type').discriminator).toBe('type')
+      expect(s.oneOf([A, B], 'version').discriminator).toBe('version')
+
+      // Invalid keys must fail typechecking
+      expect(() =>
+        s.oneOf(
+          [A, B],
+          // @ts-expect-error 'payload' is not a shared Literal/Enum discriminator key
+          'payload',
+        ),
+      ).toThrow()
+      expect(() =>
+        s.oneOf(
+          [A, B],
+          // @ts-expect-error 'nonexistent' does not exist on variants
+          'nonexistent',
+        ),
+      ).toThrow()
+    })
+  })
+
   describe('from struct variants with literal or enum discriminator properties', () => {
     it('discriminates variants sharing a literal property and narrows types', () => {
       const WeaponSchema = s.struct({
