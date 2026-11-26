@@ -35,6 +35,33 @@ const pgDDL = generateStructDDL(ArticleSchema, {
   dialect: 'postgres'
 })`
 
+const discriminatedUnionDDLSnippet = `import {
+  s,
+  generateDiscriminatedUnionDDL,
+  generateSchemaDDL,
+} from '@collidor/struct'
+
+const PaymentMethod = s.oneOf(
+  [
+    s.struct({ kind: s.literal('card'), last4: s.string(), brand: s.string() }),
+    s.struct({ kind: s.literal('bank'), iban: s.string() }),
+  ],
+  'kind',
+)
+
+// Generates a main table with CHECK + UNIQUE (id, kind) and one leaf table per variant
+// linked via composite FOREIGN KEY (id, kind) REFERENCES main(id, kind) ON DELETE CASCADE
+const statements = generateDiscriminatedUnionDDL('payment_methods', PaymentMethod, {
+  dialect: 'postgres',
+})
+
+// generateSchemaDDL also expands discriminated union fields (1-to-1) and arrays (1-to-N)
+const OrderSchema = s.struct({
+  id: s.string().uuid(),
+  payment: PaymentMethod,
+})
+const allOrderStatements = generateSchemaDDL('orders', OrderSchema, { dialect: 'sqlite' })`
+
 const migrationsSnippet = `import { s, SchemaMigrationEngine } from '@collidor/struct'
 
 // Version 1 Schema
@@ -69,6 +96,12 @@ console.log(plan.operations)
       Export struct schemas directly into production-grade SQL DDL for SQLite and PostgreSQL:
     </p>
     <CodeBlock title="ddl.ts" language="typescript" :code="ddlSnippet" />
+    <p>
+      For discriminated unions (<code>s.oneOf(variants, discriminator)</code>), <code>generateDiscriminatedUnionDDL</code> and
+      <code>generateSchemaDDL</code> emit normalized main + per-variant leaf tables with composite
+      <code>FOREIGN KEY (id, discriminator)</code> constraints and <code>CHECK</code> guards:
+    </p>
+    <CodeBlock title="discriminated-union-ddl.ts" language="typescript" :code="discriminatedUnionDDLSnippet" />
   </section>
 
   <section id="migrations" class="docs-section">

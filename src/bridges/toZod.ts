@@ -158,6 +158,23 @@ const TO_ZOD_HANDLERS: ToZodHandlers = {
 
   union: (descriptor: UnionDescriptor) => {
     const variants = descriptor.variants.map(toZod)
+    if (
+      descriptor.discriminator &&
+      variants.length >= 1 &&
+      variants.every((v) => v instanceof z.ZodObject)
+    ) {
+      try {
+        return z.discriminatedUnion(
+          descriptor.discriminator,
+          variants as unknown as [
+            z.ZodDiscriminatedUnionOption<string>,
+            ...z.ZodDiscriminatedUnionOption<string>[],
+          ],
+        )
+      } catch {
+        // Fall back to standard union when Zod rejects discriminator option types
+      }
+    }
     return variants.length >= 2
       ? z.union(variants as unknown as [z.ZodTypeAny, z.ZodTypeAny, ...z.ZodTypeAny[]])
       : (variants[0] ?? z.any())

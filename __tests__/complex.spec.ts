@@ -52,9 +52,9 @@ describe('Complex and Variant Schemas', () => {
     })
   })
 
-  describe('s.union() and s.tuple()', () => {
+  describe('s.oneOf() and s.tuple()', () => {
     it('validates unions', () => {
-      const schema = s.union([s.string(), s.number()])
+      const schema = s.oneOf([s.string(), s.number()])
       expect(schema.parse('hello')).toBe('hello')
       expect(schema.parse(42)).toBe(42)
       expect(() => schema.parse(true)).toThrow('does not match any union variant')

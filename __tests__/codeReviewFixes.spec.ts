@@ -23,8 +23,8 @@ import { sortComputedDefsTopologically } from '../src/computed/astEvaluator'
 describe('Code Review Bug Fixes & Refactorings', () => {
   describe('Axon Bridge: Union-to-Union Subtyping', () => {
     it('correctly assesses reflexive and subtype union assignability', () => {
-      const uAB = s.union([s.string(), s.number()])
-      const uABC = s.union([s.string(), s.number(), s.boolean()])
+      const uAB = s.oneOf([s.string(), s.number()])
+      const uABC = s.oneOf([s.string(), s.number(), s.boolean()])
       const uA = s.string()
 
       // Reflexive
@@ -115,7 +115,7 @@ describe('Code Review Bug Fixes & Refactorings', () => {
     })
 
     it('asynchronously parses union with async transforms', async () => {
-      const unionSchema = s.union([
+      const unionSchema = s.oneOf([
         s.number(),
         s.string().transform(async (s) => `str:${s}`),
       ])

@@ -165,7 +165,7 @@ describe('Interop Bridges Hardening & Subtyping', () => {
       expect(isAssignable(nullableStr, s.string().nullable())).toBe(true)
 
       // Nullable source CAN flow into union containing null
-      expect(isAssignable(nullableStr, s.union([s.string(), s.null()]))).toBe(true)
+      expect(isAssignable(nullableStr, s.oneOf([s.string(), s.null()]))).toBe(true)
 
       // Non-nullable source CAN flow into nullable target
       expect(isAssignable(nonNullableStr, nullableStr)).toBe(true)

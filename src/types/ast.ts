@@ -236,9 +236,11 @@ export interface EnumDescriptor extends BaseDescriptor {
   default?: string | number
 }
 
+export type DiscriminatorValue = string | number | boolean | null
+
 export interface LiteralDescriptor extends BaseDescriptor {
   kind: 'literal'
-  value: string | number | boolean | null
+  value: DiscriminatorValue
 }
 
 export interface UnionDescriptor extends BaseDescriptor {

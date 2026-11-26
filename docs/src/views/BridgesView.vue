@@ -23,53 +23,55 @@ if ('value' in result) {
 }`
 
 const zodBridgeSnippet = `import { s } from '@collidor/struct'
-import { toZod, fromZodV3 } from '@collidor/struct/bridges/zod'
+import { toZod, fromZod, fromZodV3 } from '@collidor/struct/bridges/zod'
 import { z } from 'zod'
 
-// 1. Convert @collidor/struct to Zod
-const structSchema = s.struct({
-  email: s.string().email(),
-  count: s.number().int().min(1)
-})
+// 1. Convert @collidor/struct to Zod (including discriminated unions)
+const EventSchema = s.oneOf(
+  [
+    s.struct({ type: s.literal('click'), x: s.number(), y: s.number() }),
+    s.struct({ type: s.literal('keypress'), key: s.string() }),
+  ],
+  'type',
+)
 
-const zodSchema = toZod(structSchema)
-// zodSchema is an authentic z.ZodObject preserving all bounds and custom error messages!
-zodSchema.parse({ email: 'hello@collidor.com', count: 5 })
+const zodEvent = toZod(EventSchema)
+// Produces z.discriminatedUnion('type', [...]) preserving all constraints!
+zodEvent.parse({ type: 'click', x: 10, y: 20 })
 
-// 2. Convert Zod back to @collidor/struct
-const originalZod = z.object({
-  name: z.string().min(2),
-  tags: z.array(z.string())
-})
+// 2. Convert Zod back to @collidor/struct (fromZod for Zod 4, fromZodV3 for Zod 3)
+const originalZod = z.discriminatedUnion('status', [
+  z.object({ status: z.literal('ok'), data: z.string() }),
+  z.object({ status: z.literal('err'), message: z.string() }),
+])
 
 const convertedStruct = fromZodV3(originalZod)
-// Ready for use with Axon, JSON Schema, or @collidor/ui!`
+// Preserves DiscriminatedUnionSchema (and falls back to UnionSchema if incompatible)`
 
 const jsonSchemaSnippet = `import { s } from '@collidor/struct'
 import { toJSONSchema, fromJSONSchema } from '@collidor/struct/bridges/jsonSchema'
 
-const schema = s.struct({
-  title: s.string().min(1).describe('Post title'),
-  rating: s.number().min(1).max(5),
-  published: s.boolean().default(false)
-})
+const schema = s.oneOf(
+  [
+    s.struct({ kind: s.literal('email'), address: s.string().email() }),
+    s.struct({ kind: s.literal('sms'), phone: s.string() }),
+  ],
+  'kind',
+)
 
-// Export to JSON Schema (Draft 2020-12 / Draft 7)
+// Export to JSON Schema (emits oneOf + OpenAPI/JSON Schema discriminator)
 const jsonSchema = toJSONSchema(schema)
 /*
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "type": "object",
-  "properties": {
-    "title": { "type": "string", "minLength": 1, "description": "Post title" },
-    "rating": { "type": "number", "minimum": 1, "maximum": 5 },
-    "published": { "type": "boolean", "default": false }
-  },
-  "required": ["title", "rating"]
+  "oneOf": [
+    { "type": "object", "properties": { "kind": { "const": "email" }, "address": { "type": "string", "format": "email" } }, "required": ["kind", "address"] },
+    { "type": "object", "properties": { "kind": { "const": "sms" }, "phone": { "type": "string" } }, "required": ["kind", "phone"] }
+  ],
+  "discriminator": { "propertyName": "kind" }
 }
 */
 
-// Import JSON Schema directly into executable struct builders
+// Import JSON Schema back into an executable DiscriminatedUnionSchema
 const restoredSchema = fromJSONSchema(jsonSchema)`
 
 const axonSnippet = `import { s } from '@collidor/struct'

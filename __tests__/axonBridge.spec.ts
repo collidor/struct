@@ -72,7 +72,7 @@ describe('Axon Graph Engine Bridge', () => {
     })
 
     it('checks union assignability', () => {
-      const numOrStr = s.union([s.number(), s.string()])
+      const numOrStr = s.oneOf([s.number(), s.string()])
       expect(isAssignable(s.number(), numOrStr)).toBe(true)
       expect(isAssignable(s.string(), numOrStr)).toBe(true)
       expect(isAssignable(s.boolean(), numOrStr)).toBe(false)

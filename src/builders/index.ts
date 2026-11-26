@@ -12,8 +12,25 @@ import {
 import { StructSchema } from './struct'
 import { ArraySchema } from './array'
 import { RecordSchema } from './record'
-import { EnumSchema, LiteralSchema } from './enum'
-import { UnionSchema, TupleSchema } from './union'
+import {
+  EnumSchema,
+  LiteralSchema,
+  unwrapEnumValues,
+  type EnumInputItem,
+  type EnumPrimitive,
+  type UnwrapEnumValues,
+} from './enum'
+import {
+  UnionSchema,
+  DiscriminatedUnionSchema,
+  TupleSchema,
+  createDiscriminatedUnionFromEnum,
+  createUnionOrDiscriminated,
+  type CommonDiscriminatorKeys,
+  type DiscriminatedVariant,
+  type EnumVariantMap,
+  type EnumVariantsTuple,
+} from './union'
 import { TransformSchema, PipeSchema } from './transform'
 import type { BaseSchema } from '../core/base'
 import type {
@@ -62,6 +79,80 @@ const createStruct: StructBuilderFn = ((
   }
   return new StructSchema(nameOrShape, shapeOrDescriptor)
 }) as StructBuilderFn
+
+export interface OneOfFn {
+  <
+    const TVariants extends readonly [BaseSchema<any, any>, ...BaseSchema<any, any>[]],
+    const TDiscriminator extends CommonDiscriminatorKeys<TVariants>,
+  >(
+    variants: TVariants,
+    discriminator: TDiscriminator,
+    descriptor?: Partial<UnionDescriptor>,
+  ): TVariants extends readonly DiscriminatedVariant<TDiscriminator>[]
+    ? DiscriminatedUnionSchema<TDiscriminator, TVariants>
+    : DiscriminatedUnionSchema<TDiscriminator, readonly DiscriminatedVariant<TDiscriminator>[]>
+  <const TVariants extends readonly BaseSchema<any, any>[]>(
+    variants: TVariants,
+    descriptor?: Partial<UnionDescriptor>,
+  ): UnionSchema<TVariants>
+}
+
+const createOneOf: OneOfFn = ((
+  variants: readonly BaseSchema<any, any>[],
+  discriminatorOrDescriptor?: string | Partial<UnionDescriptor>,
+  maybeDescriptor?: Partial<UnionDescriptor>,
+) => {
+  if (typeof discriminatorOrDescriptor === 'string') {
+    return new DiscriminatedUnionSchema(
+      discriminatorOrDescriptor,
+      variants as readonly DiscriminatedVariant<string>[],
+      maybeDescriptor,
+    )
+  }
+  return new UnionSchema(variants, discriminatorOrDescriptor)
+}) as OneOfFn
+
+export interface DiscriminatedUnionFn {
+  <
+    const TDiscriminator extends string,
+    const TVariants extends readonly [
+      DiscriminatedVariant<TDiscriminator>,
+      ...DiscriminatedVariant<TDiscriminator>[],
+    ],
+  >(
+    discriminator: TDiscriminator,
+    variants: TVariants,
+    descriptor?: Partial<UnionDescriptor>,
+  ): DiscriminatedUnionSchema<TDiscriminator, TVariants>
+  <
+    const TDiscriminator extends string,
+    const TValues extends readonly EnumPrimitive[],
+    TMap extends EnumVariantMap<TDiscriminator, TValues> &
+      Record<Exclude<keyof TMap, TValues[number]>, never>,
+  >(
+    discriminator: TDiscriminator,
+    enumSchema: EnumSchema<TValues>,
+    variants: TMap,
+    descriptor?: Partial<UnionDescriptor>,
+  ): DiscriminatedUnionSchema<TDiscriminator, EnumVariantsTuple<TDiscriminator, TValues, TMap>>
+}
+
+const createDiscriminatedUnion: DiscriminatedUnionFn = ((
+  discriminator: string,
+  enumOrVariants: any,
+  variantsOrDescriptor?: any,
+  maybeDescriptor?: any,
+) => {
+  if (enumOrVariants instanceof EnumSchema) {
+    return createDiscriminatedUnionFromEnum(
+      discriminator,
+      enumOrVariants,
+      variantsOrDescriptor,
+      maybeDescriptor,
+    )
+  }
+  return new DiscriminatedUnionSchema(discriminator, enumOrVariants, variantsOrDescriptor)
+}) as DiscriminatedUnionFn
 
 export const s = {
   string: (descriptor?: Partial<StringDescriptor>): StringSchema => new StringSchema(descriptor),
@@ -125,20 +216,19 @@ export const s = {
     descriptor?: Partial<RecordDescriptor>,
   ): RecordSchema<TValue, TKey> => new RecordSchema(values, keys, descriptor),
 
-  enum: <TValues extends readonly (string | number)[]>(
+  enum: <const TValues extends readonly EnumInputItem[]>(
     values: TValues,
     descriptor?: Partial<EnumDescriptor>,
-  ): EnumSchema<TValues> => new EnumSchema(values, descriptor),
+  ): EnumSchema<UnwrapEnumValues<TValues>> => new EnumSchema(unwrapEnumValues(values), descriptor),
 
-  literal: <TValue extends string | number | boolean | null>(
+  literal: <const TValue extends string | number | boolean | null>(
     value: TValue,
     descriptor?: Partial<LiteralDescriptor>,
   ): LiteralSchema<TValue> => new LiteralSchema(value, descriptor),
 
-  union: <TVariants extends readonly BaseSchema<any, any>[]>(
-    variants: TVariants,
-    descriptor?: Partial<UnionDescriptor>,
-  ): UnionSchema<TVariants> => new UnionSchema(variants, descriptor),
+  oneOf: createOneOf,
+
+  discriminatedUnion: createDiscriminatedUnion,
 
   tuple: <TItems extends readonly BaseSchema<any, any>[]>(
     items: TItems,
@@ -204,7 +294,8 @@ const FROM_DESCRIPTOR_HANDLERS: FromDescriptorHandlers = {
     ),
   enum: (desc) => new EnumSchema(desc.values || [], desc),
   literal: (desc) => new LiteralSchema(desc.value, desc),
-  union: (desc) => new UnionSchema((desc.variants || []).map(s.fromDescriptor), desc),
+  union: (desc) =>
+    createUnionOrDiscriminated((desc.variants || []).map(s.fromDescriptor), desc.discriminator, desc),
   tuple: (desc) => new TupleSchema((desc.items || []).map(s.fromDescriptor), desc),
 }
 
