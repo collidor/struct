@@ -31,6 +31,20 @@ jobs:
             - name: Checkout Repository
               uses: actions/checkout@v4
 
+            # The docs render forms with @collidor/ui-forms, which needs @collidor/ui 3. Neither is on npm
+            # yet, so build against their sources. Delete these two steps once both are published.
+            - name: Checkout @collidor/ui
+              uses: actions/checkout@v4
+              with:
+                  repository: collidor/ui
+                  path: .siblings/ui
+
+            - name: Checkout @collidor/ui-forms
+              uses: actions/checkout@v4
+              with:
+                  repository: collidor/ui-forms
+                  path: .siblings/ui-forms
+
             - name: Install pnpm
               uses: pnpm/action-setup@v4
               with:

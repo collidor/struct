@@ -3,3 +3,6 @@ dist
 coverage
 cov_profile
 report
+
+# unpublished sibling packages checked out by CI
+.siblings/

@@ -6,7 +6,8 @@
     ".": "./src/index.ts",
     "./bridges/axon": "./src/bridges/axon.ts",
     "./bridges/zod": "./src/bridges/zod.ts",
-    "./bridges/jsonSchema": "./src/bridges/jsonSchema.ts"
+    "./bridges/jsonSchema": "./src/bridges/jsonSchema.ts",
+    "./form": "./src/form/index.ts"
   },
   "publish": {
     "include": [
