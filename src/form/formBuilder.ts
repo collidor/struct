@@ -25,6 +25,7 @@ import {
   checkbox,
   switchInput,
   multiselect,
+  keyValue,
 } from './widgets'
 import {
   row,
@@ -104,6 +105,7 @@ export const f = {
   checkbox,
   switchInput,
   multiselect,
+  keyValue,
 
   // 3. Layout Containers (transparent in data shape, grouped in UI)
   row,

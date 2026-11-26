@@ -8,7 +8,7 @@ import { cloneDescriptor } from '../../utils/clone'
 import { createFieldNode, evaluateDerive } from '../fieldNode'
 import { isAvailable, resolveOptions } from '../options'
 import { isFormField, type FormFieldOptions } from '../field'
-import { PathScope, ITEM, type PathInput, type PathSegment } from '../paths'
+import { PathScope, ITEM, formatPath, getAt, type PathInput, type PathSegment } from '../paths'
 import { evaluateExpression } from '../../computed/astEvaluator'
 import { isUIOnlyNode, UIOnlyNode } from '../nodes/uiOnly'
 import { isLayoutContainerNode, LayoutContainerNode } from '../nodes/layout'
@@ -590,9 +590,24 @@ export class FormStructSchema<
                 index: rowScope.index,
               }
               const nodes = this._buildNodes({ $item: itemSchema }, `${currentPath}[]`, rowContext, {}, currentPath)
-              return nodes[0]?.kind === 'field' ? nodes[0] : undefined
+              const resolved = nodes[0]
+              if (resolved?.kind !== 'field') return undefined
+              resolved.rowPath = formatPath(rowPath)
+              return resolved
             },
           })
+          // For a consumer that cannot call a function (a tree sent as JSON), put every existing
+          // row's resolved subtree in the tree itself.
+          if (context.expandRows && context.scope) {
+            const listScope = context.scope.child(...own)
+            const list = getAt(listScope.root, listScope.base)
+            if (Array.isArray(list)) {
+              fieldNode.rows = list.flatMap((_, index) => {
+                const row = fieldNode.resolveItem!(listScope.root, [...listScope.base, index])
+                return row ? [row] : []
+              })
+            }
+          }
           // The template describes a row; it is not a field of its own.
           delete fieldsByKey[`${currentPath}[]`]
         }

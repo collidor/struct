@@ -78,6 +78,7 @@ describe('form widgets: kind and props', () => {
       'dateInput',
       'datetimeInput',
       'fileInput',
+      'keyValue',
       'list',
       'multiselect',
       'numberInput',

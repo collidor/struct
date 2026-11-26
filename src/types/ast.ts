@@ -24,6 +24,7 @@ export type WidgetHint =
   | 'table'
   | 'list'
   | 'combobox'
+  | 'keyvalue'
   | 'custom'
   | (string & {})
 

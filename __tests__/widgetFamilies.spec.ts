@@ -97,3 +97,62 @@ describe('display settings declared in a descriptor', () => {
     expect(withOption.toFormTree().fieldsByKey.a.hidden).toBe(false)
   })
 })
+
+describe('key/value widget for records', () => {
+  it('serializes and chains', () => {
+    const w = f.keyValue().keyPlaceholder('header').valuePlaceholder('value').addLabel('Add header')
+    expect(w.toJSON()).toEqual({
+      kind: 'keyvalue',
+      props: { keyPlaceholder: 'header', valuePlaceholder: 'value', addLabel: 'Add header' },
+    })
+    expect(f.keyValue().props).toEqual({})
+  })
+
+  it('is what a record field gets by default, typed by its values', () => {
+    const form = f.struct({
+      labels: s.record(s.string()),
+      limits: s.record(s.number()),
+      flags: s.record(s.boolean()),
+      anything: s.record(s.unknown()),
+    })
+    const { fieldsByKey: n } = form.toFormTree()
+    expect(n.labels).toMatchObject({ widget: 'keyvalue', widgetProps: { valueKind: 'string' } })
+    expect(n.limits.widgetProps.valueKind).toBe('number')
+    expect(n.flags.widgetProps.valueKind).toBe('boolean')
+    expect(n.anything.widgetProps.valueKind).toBe('any')
+  })
+
+  it('can be asked for, with its own text', () => {
+    const form = f.struct({
+      headers: f.field(s.record(s.string()), { widget: f.keyValue().addLabel('Add header') }),
+    })
+    expect(form.toFormTree().fieldsByKey.headers).toMatchObject({
+      widget: 'keyvalue',
+      widgetProps: { valueKind: 'string', addLabel: 'Add header' },
+    })
+  })
+
+  it('describes the rows of a list of records as key/value editors', () => {
+    const form = f.struct({ rows: s.array(s.record(s.string())) })
+    const rows = form.toFormTree().fieldsByKey.rows
+    expect(rows.widget).toBe('list')
+    expect(rows.item).toMatchObject({ widget: 'keyvalue', type: 'record' })
+  })
+
+  it('is only offered for records', () => {
+    f.field(s.record(s.string()), { widget: f.keyValue() })
+    // @ts-expect-error a key/value editor edits a record
+    f.field(s.string(), { widget: f.keyValue() })
+    // @ts-expect-error not a list
+    f.field(s.array(s.string()), { widget: f.keyValue() })
+    // @ts-expect-error not a number
+    f.field(s.number(), { widget: f.keyValue() })
+    expect(true).toBe(true)
+  })
+
+  it('validates the record as before', () => {
+    const form = f.struct({ labels: s.record(s.string().min(2)) })
+    expect(form.safeParse({ labels: { a: 'ok' } }).success).toBe(true)
+    expect(form.safeParse({ labels: { a: 'x' } }).issues?.[0].path).toEqual(['labels', 'a'])
+  })
+})

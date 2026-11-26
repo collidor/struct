@@ -113,7 +113,8 @@ const WIDGET_INFERRERS: WidgetInferrersMap = {
   },
   array: inferArrayWidget,
   struct: (_desc, props) => ({ widget: 'custom', props }),
-  record: (_desc, props) => ({ widget: 'custom', props }),
+  // a record has dynamic keys: edit it as key/value rows, typed by what its values are
+  record: (desc, props) => ({ widget: 'keyvalue', props: { ...props, valueKind: desc.values?.kind ?? 'any' } }),
   tuple: (_desc, props) => ({ widget: 'custom', props }),
   union: (_desc, props) => ({ widget: 'select', props }),
   literal: (_desc, props) => ({ widget: 'text', props }),

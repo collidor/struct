@@ -281,6 +281,8 @@ export interface FormContext {
   rootValues?: Record<string, unknown>
   path?: string
   index?: number
+  /** Build `rows` for every list field: each existing row resolved against the values. */
+  expandRows?: boolean
   /** Where the object being built sits in the root values; resolves $root/$parent/$item. */
   scope?: PathScope
   stepIndex?: number
@@ -321,6 +323,14 @@ export interface FormFieldNode {
    * it is dropped when the tree is serialized.
    */
   resolveItem?: (root: unknown, rowPath: string | readonly (string | number | symbol)[]) => FormFieldNode | undefined
+  /**
+   * With `toFormTree(values, { expandRows: true })`: the subtree of each EXISTING row, in order,
+   * resolved against the values (so a `when` or `disabledWhen` inside a row is already decided).
+   * Plain data, so it survives JSON, unlike `resolveItem`. Lists inside a row are expanded too.
+   */
+  rows?: FormFieldNode[]
+  /** On a resolved row (from `resolveItem` or `rows`): where that row sits, e.g. `orders[2]`. */
+  rowPath?: string
   options?: Array<{ value: string | number; label: string }>
   dataSource?: DataSourceConfig
   virtual?: VirtualScrollConfig

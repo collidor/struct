@@ -79,8 +79,8 @@ export function createFieldNode({
   const widget = options?.widget?.kind ?? inferred.widget
   const props = options?.widget
     ? {
-        // a chosen widget still needs the schema's bounds and options
-        ...(['number', 'integer', 'enum', 'array'].includes(descriptor.kind) ? inferred.props : {}),
+        // a chosen widget still needs the schema's bounds, options and value type
+        ...(['number', 'integer', 'enum', 'array', 'record'].includes(descriptor.kind) ? inferred.props : {}),
         ...options.widget.props,
       }
     : inferred.props

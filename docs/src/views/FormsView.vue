@@ -296,6 +296,10 @@ function onFieldChange(event: CustomEvent<{ fieldKey: string; fieldValue: unknow
             <td><code>s.enum([...])</code>, or any string or number with <code>f.field</code>'s <code>options</code></td>
           </tr>
           <tr>
+            <td><code>f.keyValue()</code></td>
+            <td><code>s.record(...)</code> (the default for a record; each row is a key and a value typed by <code>valueKind</code>)</td>
+          </tr>
+          <tr>
             <td><code>f.multiselect()</code></td>
             <td><code>s.array(...)</code> with <code>options</code></td>
           </tr>
@@ -342,7 +346,9 @@ function onFieldChange(event: CustomEvent<{ fieldKey: string; fieldValue: unknow
 
     <Callout type="info" title="Rows">
       Inside a list, these are judged against the row. The shared row template has no values, so use a list field's
-      <code>resolveItem(root, rowPath)</code> (the renderer does) to get one real row's settings.
+      <code>resolveItem(root, rowPath)</code> (the renderer does) to get one real row's settings. A consumer that cannot call a
+      function, such as a tree sent as JSON, can ask for <code>form.toFormTree(values, &#123; expandRows: true &#125;)</code>: each
+      list field then carries <code>rows</code>, one resolved subtree per existing row, with its concrete <code>rowPath</code>.
     </Callout>
 
     <Callout type="warning" title="Renderer support">

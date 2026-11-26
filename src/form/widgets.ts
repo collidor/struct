@@ -33,6 +33,7 @@ export type StringWidgetKind = 'text' | 'textarea' | 'password' | 'color' | 'fil
 export type DateWidgetKind = 'date' | 'datetime'
 export type ChoiceWidgetKind = 'select' | 'radio'
 export type BooleanWidgetKind = 'checkbox' | 'switch'
+export type RecordWidgetKind = 'keyvalue'
 export type NumericWidgetKind = 'number' | 'slider' | 'range'
 export type CollectionWidgetKind = 'table' | 'tags' | 'list' | 'cards' | 'tabs' | 'combobox' | 'multiselect'
 export type FormWidgetKind =
@@ -40,6 +41,7 @@ export type FormWidgetKind =
   | DateWidgetKind
   | ChoiceWidgetKind
   | BooleanWidgetKind
+  | RecordWidgetKind
   | NumericWidgetKind
   | CollectionWidgetKind
 
@@ -54,6 +56,7 @@ export const STRING_WIDGET_KINDS: readonly StringWidgetKind[] = Object.freeze([
 export const DATE_WIDGET_KINDS: readonly DateWidgetKind[] = Object.freeze(['date', 'datetime'])
 export const CHOICE_WIDGET_KINDS: readonly ChoiceWidgetKind[] = Object.freeze(['select', 'radio'])
 export const BOOLEAN_WIDGET_KINDS: readonly BooleanWidgetKind[] = Object.freeze(['checkbox', 'switch'])
+export const RECORD_WIDGET_KINDS: readonly RecordWidgetKind[] = Object.freeze(['keyvalue'])
 export const NUMERIC_WIDGET_KINDS: readonly NumericWidgetKind[] = Object.freeze([
   'number',
   'slider',
@@ -119,6 +122,11 @@ export interface MultiselectWidgetProps {
   readonly searchable?: boolean
 }
 export type EmptyWidgetProps = Record<never, never>
+export interface KeyValueWidgetProps {
+  readonly keyPlaceholder?: string
+  readonly valuePlaceholder?: string
+  readonly addLabel?: string
+}
 
 export interface SliderWidgetProps {
   /** Show the current value next to the control. */
@@ -468,6 +476,34 @@ export class MultiselectWidget<TValue extends readonly unknown[] = readonly unkn
   }
 }
 
+export class KeyValueWidget<TValue extends Record<string, unknown> = Record<string, unknown>> extends WidgetBase<
+  'keyvalue',
+  KeyValueWidgetProps,
+  TValue
+> {
+  readonly kind = 'keyvalue' as const
+
+  constructor(props: KeyValueWidgetProps = {}) {
+    super(props)
+  }
+
+  protected create(props: KeyValueWidgetProps): this {
+    return new KeyValueWidget<TValue>(props) as this
+  }
+
+  keyPlaceholder(text: string): KeyValueWidget<TValue> {
+    return this.with({ keyPlaceholder: text })
+  }
+
+  valuePlaceholder(text: string): KeyValueWidget<TValue> {
+    return this.with({ valuePlaceholder: text })
+  }
+
+  addLabel(text: string): KeyValueWidget<TValue> {
+    return this.with({ addLabel: text })
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Numeric widgets
 // ---------------------------------------------------------------------------
@@ -759,6 +795,9 @@ export type DateFormWidget = DateWidget<string | Date> | DatetimeWidget<string |
 /** Choosing one of the available options (from an enum, or `f.field`'s `options`). */
 export type ChoiceFormWidget = SelectWidget<string | number> | RadioWidget<string | number>
 
+/** Widgets that edit a record (an object with dynamic keys). */
+export type RecordFormWidget = KeyValueWidget<Record<string, unknown>>
+
 /** Widgets that edit a boolean. */
 export type BooleanFormWidget = CheckboxWidget<boolean> | SwitchWidget<boolean>
 
@@ -793,6 +832,7 @@ export type FormWidget =
   | DateFormWidget
   | ChoiceFormWidget
   | BooleanFormWidget
+  | RecordFormWidget
   | NumericFormWidget
   | CollectionFormWidget
 
@@ -812,7 +852,9 @@ export type WidgetForValue<TValue> = [NonNullable<TValue>] extends [never]
           ? NumericFormWidget | ChoiceFormWidget
           : [NonNullable<TValue>] extends [readonly unknown[]]
             ? CollectionFormWidget
-            : never
+            : [NonNullable<TValue>] extends [Record<string, unknown>]
+              ? RecordFormWidget
+              : never
 
 /**
  * Resolves to `W` when widget `W` can edit a field of value type `TValue`,
@@ -949,6 +991,12 @@ export function multiselect<TValue extends readonly unknown[] = readonly unknown
   return new MultiselectWidget<TValue>(props)
 }
 
+export function keyValue<TValue extends Record<string, unknown> = Record<string, unknown>>(
+  props: KeyValueWidgetProps = {},
+): KeyValueWidget<TValue> {
+  return new KeyValueWidget<TValue>(props)
+}
+
 /** Namespace-style bag of all widget factories (`widgets.textInput()` ...). */
 export const widgets = Object.freeze({
   textInput,
@@ -973,6 +1021,7 @@ export const widgets = Object.freeze({
   checkbox,
   switchInput,
   multiselect,
+  keyValue,
 })
 
 // ---------------------------------------------------------------------------
@@ -1002,6 +1051,7 @@ const WIDGET_CLASSES = [
   CheckboxWidget,
   SwitchWidget,
   MultiselectWidget,
+  KeyValueWidget,
 ] as const
 
 export function isFormWidget(value: unknown): value is FormWidget {
