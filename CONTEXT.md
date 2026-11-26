@@ -52,9 +52,17 @@ _Avoid_: Stepper form, multi-page form, funnel
 The resolved, serializable hierarchical UI AST produced by inspecting a Form Structure against current form values.
 _Avoid_: Field list, flat descriptor array
 
+**Path Scope**:
+The location of one object (the root, a nested object, or one list row) in the form values, from which every reference is resolved (`PathScope`, `@collidor/struct/form`). A bare key such as `name` means the field of that object; `$root.x`, `$parent.x` and `$item.x` reach outward, and `$index` is the row number. A form tree describes a field once by its **template path** (`orders[].lines[].sku`); values and validation issues use **concrete paths** (`orders[2].lines[0].sku`). Every tree node has a unique `id`, so layout and decorator keys cannot collide either. Conditions can look into other lists with `pluck`, `some`, `every` and `count` (`some($root.warehouses, "bins[].hazard", true)`); `[]` in the field path fans out over nested lists. A list field's `resolveItem(root, rowPath)` builds one row's subtree from real values, because the shared row template has none.
+_Avoid_: Key lookup, flat path, field name resolution
+
 **Headless Form Controller**:
-The stateful, framework-agnostic runtime engine that manages form values, path mutations, collection item operations, wizard navigation, and scoped validation for a Form Structure.
+The stateful, framework-agnostic runtime engine (`HeadlessFormController`) that manages form values by path, errors, touched fields, the active step of every `steps` container and the active tab of every `tabs` container (each addressed by node `id`), list operations, and validation against a **Form Source** (anything with `toFormTree` and `safeParse`). `submit()` hands over the parsed output, not the raw values.
 _Avoid_: Form store, form manager, form state hook
+
+**Row Draft**:
+A copy of one list row being edited on its own (`controller.scoped(listPath, index?)`, a `ScopedFormController`), for dialogs. Edits stay in the draft until `commit()` writes the row back, and `discard()` drops it. A draft is judged against the WHOLE form with itself substituted in, so conditions that read another list, `$root` or the row's parent behave exactly as they do for the form. Drafts nest to any depth: committing an inner draft writes into the outer draft, not the form.
+_Avoid_: Subform state, dialog values, row copy
 
 **Data Source Descriptor**:
 A 100% JSON-serializable specification (`DataSourceConfig`) attached to a schema's metadata that declares how remote options or collection rows are fetched (`http` endpoint spec or named `provider` key), parameterized by reactive `$values.<field>`, `$search`, `$page`, `$pageSize`, and `$cursor` tokens.

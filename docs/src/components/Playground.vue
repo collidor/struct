@@ -1,7 +1,7 @@
 <script setup vapor lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { s, toZod, toJSONSchema, generateStructDDL, getFormFields } from '@collidor/struct'
-import { f, form } from '@collidor/struct/form'
+import { s, toZod, toJSONSchema, generateStructDDL } from '@collidor/struct'
+import { f, form, descriptorToFormTree } from '@collidor/struct/form'
 import { EditorView, basicSetup } from 'codemirror'
 import { javascript } from '@codemirror/lang-javascript'
 import { json } from '@codemirror/lang-json'
@@ -159,229 +159,6 @@ const highlightedFormSubmitted = computed(() =>
 
 let compiledSchema: any = null
 
-function buildPresetSchema(id: string) {
-  if (id === 'complex-wizard') {
-    return f.struct({
-      onboarding: f.steps({
-        organization: f.section({
-          title: '1. Organization',
-          description: 'Corporate identity and compliance tier',
-        }, {
-          notice: f.alert({
-            title: 'Enterprise Tenant Provisioning',
-            message: 'Specify your corporate identity and primary compliance profile. Step validation blocks Next if required fields are missing.',
-            tone: 'info',
-          }),
-          companyRow: f.row({
-            companyName: f.string().min(2).describe('Company Legal Name'),
-            workspaceSlug: f.string().min(2).toLowerCase().describe('Workspace URL Slug'),
-          }),
-          corpGrid: f.grid({
-            industry: f.enum(['technology', 'finance', 'healthcare', 'retail']).default('technology').describe('Industry Sector'),
-            foundedYear: f.number().integer().min(1900).max(2026).default(2021).describe('Founded Year'),
-            taxId: f.string().min(5).describe('Corporate Tax / VAT ID'),
-          }, { columns: 3 }),
-          complianceWhen: f.when('industry == "finance" || industry == "healthcare"', {
-            complianceOfficer: f.string().describe('Data Compliance Officer'),
-            auditSchedule: f.enum(['quarterly', 'continuous']).default('continuous').describe('Audit Frequency'),
-          }),
-        }),
-        plan: f.section('2. Plan & Billing', {
-          planRow: f.row({
-            tier: f.enum(['starter', 'pro', 'enterprise']).default('enterprise').describe('Subscription Tier'),
-            billingCycle: f.enum(['monthly', 'annual']).default('annual').describe('Billing Frequency'),
-          }),
-          teamSize: f.number().min(5).max(500).step(5).default(25).describe('Team Seat Allocation'),
-          enterpriseWhen: f.when('tier == "enterprise"', {
-            customDomain: f.optional(f.string().url()).describe('Custom Vanity Domain (SSO)'),
-            dedicatedSupport: f.boolean().default(true).describe('24/7 Dedicated Support & SLA'),
-          }),
-          costEstimate: f.computedDisplay('teamSize * (tier == "enterprise" ? 45 : tier == "pro" ? 25 : 10)', {
-            label: 'Estimated Cost ($/mo)',
-          }),
-        }),
-        resources: f.section('3. Infrastructure', {
-          clusterNodes: f.array(
-            f.struct({
-              name: f.string().describe('Node Name'),
-              service: f.enum(['database', 'compute', 'storage', 'ingress']).describe('Service Type'),
-              instances: f.number().integer().positive().describe('Instances'),
-              costPerHour: f.number().positive().describe('Rate ($/hr)'),
-            })
-          ).asTable({
-            sortable: true,
-            columns: [
-              { key: 'name', label: 'Node Cluster', width: '35%' },
-              { key: 'service', label: 'Service', width: '25%' },
-              { key: 'instances', label: 'Qty', width: '15%', align: 'center' },
-              { key: 'costPerHour', label: 'Rate/Hr', width: '25%', align: 'right' },
-            ],
-            aggregations: [
-              { column: 'costPerHour', op: 'sum', label: 'Total Hourly Rate' },
-            ],
-          }).describe('Allocated Cluster Infrastructure'),
-          environmentTags: f.array(f.string()).asTags().describe('Environment Tags (e.g. prod, us-east, pci-dss)'),
-        }),
-        governance: f.section('4. Review & Security', {
-          governanceHeading: f.heading('Security Controls & Review', 3),
-          adminRow: f.row({
-            rootAdminEmail: f.string().email().describe('Root Admin Email'),
-            contactPhone: f.string().min(6).describe('Emergency Security Phone'),
-          }),
-          securityRow: f.row({
-            enforceMfa: f.boolean().default(true).describe('Enforce Hardware FIDO2 / MFA'),
-            auditLogging: f.boolean().default(true).describe('Enable Immutable Audit Logs (SOC2)'),
-          }),
-          acceptTerms: f.boolean().default(true).describe('I confirm agreement to the Enterprise Master Terms & DPA'),
-        }),
-      }, { validateOnNext: true }),
-    })
-  }
-
-  if (id === 'unified-form') {
-    return f.struct({
-      banner: f.alert({
-        title: 'Profile Setup',
-        message: 'Layout nodes flatten data; UI-only nodes are stripped from output.',
-        tone: 'info',
-      }),
-      nameRow: f.row({
-        firstName: f.string().min(2).describe('First Name'),
-        lastName: f.string().min(2).describe('Last Name'),
-      }, { gap: '1rem' }),
-      accountType: f.enum(['personal', 'business']).default('personal'),
-      businessInfo: f.when('accountType == "business"', {
-        companyName: f.string().describe('Registered Company'),
-        vatNumber: f.string().describe('Tax VAT ID'),
-      }),
-      interests: f.array(f.string()).asTags().describe('Skills & Tags'),
-      submitBtn: f.button({ label: 'Save Profile', action: 'submit' }),
-    })
-  }
-
-  if (id === 'table-collection') {
-    return f.struct({
-      orderNumber: f.string().min(3).describe('Order Reference'),
-      items: f.array(
-        f.struct({
-          description: f.string().describe('Product Description'),
-          quantity: f.number().integer().positive().describe('Quantity'),
-          unitPrice: f.number().positive().describe('Unit Price ($)'),
-        })
-      ).asTable({
-        sortable: true,
-        columns: [
-          { key: 'description', label: 'Item Name', width: '50%' },
-          { key: 'quantity', label: 'Qty', width: '20%', align: 'center' },
-          { key: 'unitPrice', label: 'Price', width: '30%', align: 'right' },
-        ],
-        aggregations: [{ column: 'unitPrice', op: 'sum', label: 'Subtotal' }],
-      }).describe('Purchased Line Items'),
-    })
-  }
-
-  if (id === 'async-virtual-lists') {
-    return f.struct({
-      clusterConfig: f.section({
-        title: '1. Region & Cluster Selection',
-        description: 'Cascading reactive HTTP data sources and 10,000-item virtualized combobox',
-      }, {
-        regionRow: f.row({
-          region: f.enum(['us-east', 'us-west', 'eu-central', 'ap-southeast'])
-            .default('eu-central')
-            .describe('Deployment Region'),
-          cluster: f.string()
-            .asCombobox({ searchable: true, placeholder: 'Search cluster in selected region...' })
-            .fromHttp({
-              url: '/api/v1/clusters',
-              query: { region: '$values.region', q: '$search' },
-              valueKey: 'id',
-              labelKey: 'name',
-              dependsOn: ['region'],
-            })
-            .describe('Target Kubernetes Cluster'),
-        }),
-        nodeInstance: f.string()
-          .asCombobox({ searchable: true, placeholder: 'Select from 10,000 virtualized nodes...' })
-          .fromHttp({
-            url: '/api/v1/nodes',
-            query: { cluster: '$values.cluster', page: '$page', limit: '$pageSize', q: '$search' },
-            valueKey: 'id',
-            labelKey: 'label',
-            dependsOn: ['cluster'],
-          })
-          .paginate({ mode: 'infinite', pageSize: 50 })
-          .virtual({ enabled: true, itemHeight: 36, viewportHeight: '260px' })
-          .describe('Virtual Node Pool (10,000 items)'),
-      }),
-      allocatedPool: f.section('2. Cluster Services', {
-        services: f.array(
-          f.struct({
-            serviceName: f.string().describe('Service Name'),
-            port: f.number().integer().min(80).max(65535).describe('Port'),
-            replicas: f.number().integer().min(1).max(50).default(3).describe('Replicas'),
-          })
-        ).asTable({
-          sortable: true,
-          columns: [
-            { key: 'serviceName', label: 'Service', width: '40%' },
-            { key: 'port', label: 'Port', width: '30%', align: 'center' },
-            { key: 'replicas', label: 'Replicas', width: '30%', align: 'center' },
-          ],
-        }).virtual({ itemHeight: 40 }).describe('Cluster Ingress & Services'),
-      }),
-    })
-  }
-
-  if (id === 'user-profile') {
-    return s.struct({
-      username: s.string().trim().toLowerCase().min(3).max(20).describe('Account handle'),
-      email: s.string().trim().email().describe('Primary contact address'),
-      age: s.number().integer().min(18).max(120).describe('User age'),
-      role: s.enum(['admin', 'editor', 'viewer']).default('viewer'),
-      website: s.optional(s.string().url()),
-      newsletter: s.boolean().default(false).describe('Receive product updates'),
-      bio: s.optional(s.string().max(200)),
-    })
-  }
-
-  if (id === 'ecommerce-order') {
-    return s.struct({
-      orderId: s.string().uuid(),
-      status: s.enum(['pending', 'processing', 'shipped', 'delivered']).default('pending'),
-      currency: s.string().toUpperCase().min(3).max(3).default('USD'),
-      items: s.array(
-        s.struct({
-          sku: s.string().toUpperCase().min(3),
-          quantity: s.number().integer().positive().max(100),
-          unitPrice: s.number().positive(),
-        })
-      ).min(1).describe('Order line items'),
-      notes: s.optional(s.string().max(500)),
-    })
-  }
-
-  if (id === 'axon-node') {
-    return s.struct({
-      nodeId: s.string().min(1),
-      channel: s.string().toLowerCase(),
-      payload: s.union([
-        s.string(),
-        s.number(),
-        s.struct({ signal: s.string(), value: s.number() }),
-      ]),
-      timestamp: s.number().positive(),
-      metadata: s.record(s.string(), s.unknown()),
-    })
-  }
-
-  return null
-}
-
-function normalizeCode(str: string): string {
-  return str.replace(/\r\n/g, '\n').trim()
-}
-
 function cleanExecutableCode(code: string): string {
   return code
     .replace(/\s+as\s+const\b/g, '')
@@ -490,19 +267,15 @@ async function mockFetchInterceptor(url: string, _init: RequestInit): Promise<Re
 function compileAndInspect() {
   compileError.value = null
   try {
-    let schemaInstance = buildPresetSchema(selectedPresetId.value)
-    
-    // If user edited custom code, attempt evaluating safely
-    const currentPreset = presets.find((p) => p.id === selectedPresetId.value)
-    if (normalizeCode(schemaCode.value) !== normalizeCode(currentPreset?.code || '')) {
-      try {
-        const cleanCode = cleanExecutableCode(schemaCode.value)
-        const fn = new Function('s', 'f', 'form', `return (${cleanCode});`)
-        schemaInstance = fn(s, f, form)
-      } catch (evalErr: any) {
-        compileError.value = `Syntax / Evaluation Error: ${evalErr.message}`
-        return
-      }
+    // The snippet text (preset code or user-edited code) is the single source of truth.
+    let schemaInstance: any
+    try {
+      const cleanCode = cleanExecutableCode(schemaCode.value)
+      const fn = new Function('s', 'f', 'form', `return (${cleanCode});`)
+      schemaInstance = fn(s, f, form)
+    } catch (evalErr: any) {
+      compileError.value = `Syntax / Evaluation Error: ${evalErr.message}`
+      return
     }
 
     if (!schemaInstance) return
@@ -552,7 +325,7 @@ function compileAndInspect() {
 
     // 5. Form Fields
     try {
-      const fields = getFormFields(schemaInstance)
+      const fields = descriptorToFormTree(schemaInstance.descriptor).nodes
       formFieldsOutput.value = JSON.stringify(fields, null, 2)
     } catch (e: any) {
       formFieldsOutput.value = `Error inspecting fields: ${e.message}`

@@ -10,6 +10,7 @@ import '@collidor/ui/themes/troy-strategy.css'
 
 // Import Collidor UI Custom Elements
 import '@collidor/ui'
+import '@collidor/ui-forms'
 
 // Import Documentation site styling
 import './style.css'

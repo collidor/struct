@@ -7,7 +7,7 @@ Modular data structure builder with Standard Schema compliance, JSON Schema / Zo
 - 📐 **Standard Schema V1 Compliant**: Works directly with modern form, validation, and API libraries.
 - 🔄 **Bidirectional Bridges**: Interop with **Zod 3 and 4** (`toZod`, `fromZod`, `fromZodV3`) and **JSON Schema** (`toJSONSchema`, `fromJSONSchema`).
 - ⚡ **Axon Port Subtyping**: Complete graph data type descriptor mapping and subtype compatibility checker (`isAssignable`).
-- 📝 **Dynamic UI Form Generation**: Automated field layout, widget inference, and interactive form builder (`StructBuilder`, `getFormFields`).
+- 📝 **Dynamic UI Form Generation**: Automated field layout, widget inference, and interactive form builder (`StructBuilder`, `descriptorToFormTree`).
 - 🗄️ **Storage & DDL Migrations**: Schema DDL generation and transactional migrations for SQLite/SQL backends.
 - 🧮 **Computed Properties**: Safe in-memory formula evaluation with AST dependency topological resolution.
 
@@ -26,6 +26,9 @@ pnpm dlx jsr add @collidor/struct
 # or
 bunx jsr add @collidor/struct
 ```
+
+Pin the `1.x` line (`jsr:@collidor/struct@^1`) if you are not ready for the form API changes described in
+[Upgrading to the next major release](#upgrading-to-the-next-major-release).
 
 ## Quick Start
 
@@ -57,9 +60,15 @@ if (result.success) {
 
 ## Unified Form Builder (`@collidor/struct/form`)
 
-The `@collidor/struct/form` secondary export unifies spatial layout containers, non-data UI decorators, conditional rendering, and collection view modes directly inside structure definitions:
+The `@collidor/struct/form` secondary export unifies spatial layout containers, non-data UI decorators, conditional rendering, and
+collection widgets directly inside structure definitions.
+
+`f.*` is exclusively for form concerns (layout, decorators, widgets, controllers). **Data schemas always come from `s.*`**: a raw `s.*`
+schema can be used directly as an `f.struct` field and gets a default widget inferred from its type. When you want a specific widget,
+wrap the schema with `f.field(schema, { widget })`.
 
 ```typescript
+import { s } from "@collidor/struct";
 import { f } from "@collidor/struct/form";
 
 const OnboardingForm = f.struct({
@@ -69,22 +78,27 @@ const OnboardingForm = f.struct({
     tone: "info",
   }),
 
-  // Put two inputs on the same line
+  // Put two inputs on the same line. Raw s.* schemas use their inferred default widget.
   nameRow: f.row({
-    firstName: f.string().min(2),
-    lastName: f.string().min(2),
+    firstName: s.string().min(2),
+    lastName: s.string().min(2),
   }, { gap: "1rem" }),
 
-  accountType: f.enum(["personal", "business"] as const).default("personal"),
+  accountType: s.enum(["personal", "business"] as const).default("personal"),
 
   // Conditional branch (validation bypassed when hidden)
   companyInfo: f.when('accountType == "business"', {
-    companyName: f.string(),
-    vatId: f.string(),
+    companyName: s.string(),
+    vatId: s.string(),
   }),
 
-  // Collection view modes (asTable, asList, asCards, asTags)
-  skills: f.array(f.string()).asTags(),
+  // Explicit widget: f.field(schema, { widget })
+  bio: f.field(s.string().max(500), { widget: f.textarea().rows(4) }),
+  volume: f.field(s.number().min(0).max(100), { widget: f.slider() }),
+
+  // Collections: a collection widget wraps an s.array(...)
+  skills: f.field(s.array(s.string()), { widget: f.tags() }),
+
   submitBtn: f.button({ label: "Create Account", action: "submit" }),
 });
 
@@ -93,6 +107,8 @@ const validated = OnboardingForm.parse({
   firstName: "Ada",
   lastName: "Lovelace",
   accountType: "personal",
+  bio: "Mathematician",
+  volume: 80,
   skills: ["computing", "math"],
 });
 
@@ -102,6 +118,38 @@ const controller = f.createController(OnboardingForm, {
   onSubmit: (values) => console.log("Submitted:", values),
 });
 ```
+
+### Widgets
+
+| Widget factory | Use with |
+| --- | --- |
+| `f.textInput()`, `f.textarea().rows(n)` | `s.string()` |
+| `f.numberInput()`, `f.slider()`, `f.range()` | `s.number()` |
+| `f.table(config)`, `f.tags(config)`, `f.list(config)`, `f.cards(config)` | `s.array(...)` |
+| `f.tabsWidget(config)`, `f.combobox(config)` | `s.array(...)` |
+
+`f.text(content)` is unrelated to `f.textInput()`: it stays a display-only informational node.
+
+## Upgrading to the next major release
+
+The form API is being reworked in the next major release. `f.*` becomes form-only, so the data-schema builders that used to live on `f`
+are removed, and collection presentation moves from fluent array methods to widgets. If you depend on the current form API, pin
+`@collidor/struct` to the `1.x` line until you have migrated.
+
+| Before (1.x) | After |
+| --- | --- |
+| `f.string()`, `f.number()`, `f.boolean()`, ... | `s.string()`, `s.number()`, `s.boolean()`, ... (raw `s.*` schemas are valid `f.struct` fields) |
+| `f.enum([...])` | `s.enum([...])` |
+| `f.optional(x)` | `s.optional(x)` |
+| `f.coerce` | `s.coerce` |
+| `f.string().meta({ widget: 'textarea' })` | `f.field(s.string(), { widget: f.textarea().rows(4) })` |
+| `f.array(x).asTable(config)` | `f.field(s.array(x), { widget: f.table(config) })` |
+| `f.array(x).asTags(config)` | `f.field(s.array(x), { widget: f.tags(config) })` |
+| `f.array(x).asList(config)` | `f.field(s.array(x), { widget: f.list(config) })` |
+| `f.array(x).asCards(config)` | `f.field(s.array(x), { widget: f.cards(config) })` |
+
+`f.text`, `f.heading`, `f.alert`, `f.divider`, `f.spacer`, `f.button`, `f.row`, `f.grid`, `f.tabs`, `f.section`, `f.steps`, `f.when`
+and `f.createController` are unchanged. See the docs site for the full form guide.
 
 ## Zod & JSON Schema Interop
 

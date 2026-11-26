@@ -11,7 +11,7 @@ export const PLAYGROUND_PRESETS: PlaygroundPreset[] = [
   {
     id: 'complex-wizard',
     name: 'Enterprise Cloud Onboarding (Multi-Step Wizard)',
-    description: 'A 4-step wizard with f.steps, spatial f.row & f.grid, f.when conditions, f.computedDisplay formulas, f.array().asTable(), and f.array().asTags().',
+    description: 'A 4-step wizard with f.steps, spatial f.row & f.grid, f.when conditions, f.computedDisplay formulas, f.field(s.array(...), { widget: f.table() }), and f.field(s.array(...), { widget: f.tags() }).',
     code: `f.struct({
   onboarding: f.steps({
     organization: f.section({
@@ -24,66 +24,74 @@ export const PLAYGROUND_PRESETS: PlaygroundPreset[] = [
         tone: 'info',
       }),
       companyRow: f.row({
-        companyName: f.string().min(2).describe('Company Legal Name'),
-        workspaceSlug: f.string().min(2).toLowerCase().describe('Workspace URL Slug'),
+        companyName: s.string().min(2).describe('Company Legal Name'),
+        workspaceSlug: s.string().min(2).toLowerCase().describe('Workspace URL Slug'),
       }),
       corpGrid: f.grid({
-        industry: f.enum(['technology', 'finance', 'healthcare', 'retail']).default('technology').describe('Industry Sector'),
-        foundedYear: f.number().integer().min(1900).max(2026).default(2021).describe('Founded Year'),
-        taxId: f.string().min(5).describe('Corporate Tax / VAT ID'),
+        industry: s.enum(['technology', 'finance', 'healthcare', 'retail']).default('technology').describe('Industry Sector'),
+        foundedYear: s.number().integer().min(1900).max(2026).default(2021).describe('Founded Year'),
+        taxId: s.string().min(5).describe('Corporate Tax / VAT ID'),
       }, { columns: 3 }),
       complianceWhen: f.when('industry == "finance" || industry == "healthcare"', {
-        complianceOfficer: f.string().describe('Data Compliance Officer'),
-        auditSchedule: f.enum(['quarterly', 'continuous']).default('continuous').describe('Audit Frequency'),
+        complianceOfficer: s.string().describe('Data Compliance Officer'),
+        auditSchedule: s.enum(['quarterly', 'continuous']).default('continuous').describe('Audit Frequency'),
       }),
     }),
     plan: f.section('2. Plan & Billing', {
       planRow: f.row({
-        tier: f.enum(['starter', 'pro', 'enterprise']).default('enterprise').describe('Subscription Tier'),
-        billingCycle: f.enum(['monthly', 'annual']).default('annual').describe('Billing Frequency'),
+        tier: s.enum(['starter', 'pro', 'enterprise']).default('enterprise').describe('Subscription Tier'),
+        billingCycle: s.enum(['monthly', 'annual']).default('annual').describe('Billing Frequency'),
       }),
-      teamSize: f.number().min(5).max(500).step(5).default(25).describe('Team Seat Allocation'),
+      teamSize: s.number().min(5).max(500).step(5).default(25).describe('Team Seat Allocation'),
       enterpriseWhen: f.when('tier == "enterprise"', {
-        customDomain: f.optional(f.string().url()).describe('Custom Vanity Domain (SSO)'),
-        dedicatedSupport: f.boolean().default(true).describe('24/7 Dedicated Support & SLA'),
+        customDomain: s.optional(s.string().url()).describe('Custom Vanity Domain (SSO)'),
+        dedicatedSupport: s.boolean().default(true).describe('24/7 Dedicated Support & SLA'),
       }),
       costEstimate: f.computedDisplay('teamSize * (tier == "enterprise" ? 45 : tier == "pro" ? 25 : 10)', {
         label: 'Estimated Cost ($/mo)',
       }),
     }),
     resources: f.section('3. Infrastructure', {
-      clusterNodes: f.array(
-        f.struct({
-          name: f.string().describe('Node Name'),
-          service: f.enum(['database', 'compute', 'storage', 'ingress']).describe('Service Type'),
-          instances: f.number().integer().positive().describe('Instances'),
-          costPerHour: f.number().positive().describe('Rate ($/hr)'),
-        })
-      ).asTable({
-        sortable: true,
-        columns: [
-          { key: 'name', label: 'Node Cluster', width: '35%' },
-          { key: 'service', label: 'Service', width: '25%' },
-          { key: 'instances', label: 'Qty', width: '15%', align: 'center' },
-          { key: 'costPerHour', label: 'Rate/Hr', width: '25%', align: 'right' },
-        ],
-        aggregations: [
-          { column: 'costPerHour', op: 'sum', label: 'Total Hourly Rate' },
-        ],
-      }).describe('Allocated Cluster Infrastructure'),
-      environmentTags: f.array(f.string()).asTags().describe('Environment Tags (e.g. prod, us-east, pci-dss)'),
+      clusterNodes: f.field(
+        s.array(
+          s.struct({
+            name: s.string().describe('Node Name'),
+            service: s.enum(['database', 'compute', 'storage', 'ingress']).describe('Service Type'),
+            instances: s.number().integer().positive().describe('Instances'),
+            costPerHour: s.number().positive().describe('Rate ($/hr)'),
+          })
+        ).describe('Allocated Cluster Infrastructure'),
+        {
+          widget: f.table({
+            sortable: true,
+            columns: [
+              { key: 'name', label: 'Node Cluster', width: '35%' },
+              { key: 'service', label: 'Service', width: '25%' },
+              { key: 'instances', label: 'Qty', width: '15%', align: 'center' },
+              { key: 'costPerHour', label: 'Rate/Hr', width: '25%', align: 'right' },
+            ],
+            aggregations: [
+              { column: 'costPerHour', op: 'sum', label: 'Total Hourly Rate' },
+            ],
+          }),
+        },
+      ),
+      environmentTags: f.field(
+        s.array(s.string()).describe('Environment Tags (e.g. prod, us-east, pci-dss)'),
+        { widget: f.tags() },
+      ),
     }),
     governance: f.section('4. Review & Security', {
       governanceHeading: f.heading('Security Controls & Review', 3),
       adminRow: f.row({
-        rootAdminEmail: f.string().email().describe('Root Admin Email'),
-        contactPhone: f.string().min(6).describe('Emergency Security Phone'),
+        rootAdminEmail: s.string().email().describe('Root Admin Email'),
+        contactPhone: s.string().min(6).describe('Emergency Security Phone'),
       }),
       securityRow: f.row({
-        enforceMfa: f.boolean().default(true).describe('Enforce Hardware FIDO2 / MFA'),
-        auditLogging: f.boolean().default(true).describe('Enable Immutable Audit Logs (SOC2)'),
+        enforceMfa: s.boolean().default(true).describe('Enforce Hardware FIDO2 / MFA'),
+        auditLogging: s.boolean().default(true).describe('Enable Immutable Audit Logs (SOC2)'),
       }),
-      acceptTerms: f.boolean().default(true).describe('I confirm agreement to the Enterprise Master Terms & DPA'),
+      acceptTerms: s.boolean().default(true).describe('I confirm agreement to the Enterprise Master Terms & DPA'),
     }),
   }, { validateOnNext: true }),
 })`,
@@ -139,48 +147,58 @@ export const PLAYGROUND_PRESETS: PlaygroundPreset[] = [
     description: 'Cascading reactive HTTP data sources and 10,000-item virtualized combobox',
   }, {
     regionRow: f.row({
-      region: f.enum(['us-east', 'us-west', 'eu-central', 'ap-southeast'])
+      region: s.enum(['us-east', 'us-west', 'eu-central', 'ap-southeast'])
         .default('eu-central')
         .describe('Deployment Region'),
-      cluster: f.string()
-        .asCombobox({ searchable: true, placeholder: 'Search cluster in selected region...' })
-        .fromHttp({
+      cluster: f.field(s.string().describe('Target Kubernetes Cluster'), {
+        widget: f.combobox({ searchable: true, placeholder: 'Search cluster in selected region...' }),
+        dataSource: {
+          type: 'http',
           url: '/api/v1/clusters',
+          method: 'GET',
           query: { region: '$values.region', q: '$search' },
           valueKey: 'id',
           labelKey: 'name',
           dependsOn: ['region'],
-        })
-        .describe('Target Kubernetes Cluster'),
+        },
+      }),
     }),
-    nodeInstance: f.string()
-      .asCombobox({ searchable: true, placeholder: 'Select from 10,000 virtualized nodes...' })
-      .fromHttp({
+    nodeInstance: f.field(s.string().describe('Virtual Node Pool (10,000 items)'), {
+      widget: f.combobox({ searchable: true, placeholder: 'Select from 10,000 virtualized nodes...' }),
+      dataSource: {
+        type: 'http',
         url: '/api/v1/nodes',
+        method: 'GET',
         query: { cluster: '$values.cluster', page: '$page', limit: '$pageSize', q: '$search' },
         valueKey: 'id',
         labelKey: 'label',
         dependsOn: ['cluster'],
-      })
-      .paginate({ mode: 'infinite', pageSize: 50 })
-      .virtual({ enabled: true, itemHeight: 36, viewportHeight: '260px' })
-      .describe('Virtual Node Pool (10,000 items)'),
+      },
+      pagination: { mode: 'infinite', pageSize: 50 },
+      virtual: { enabled: true, itemHeight: 36, viewportHeight: '260px' },
+    }),
   }),
   allocatedPool: f.section('2. Cluster Services', {
-    services: f.array(
-      f.struct({
-        serviceName: f.string().describe('Service Name'),
-        port: f.number().integer().min(80).max(65535).describe('Port'),
-        replicas: f.number().integer().min(1).max(50).default(3).describe('Replicas'),
-      })
-    ).asTable({
-      sortable: true,
-      columns: [
-        { key: 'serviceName', label: 'Service', width: '40%' },
-        { key: 'port', label: 'Port', width: '30%', align: 'center' },
-        { key: 'replicas', label: 'Replicas', width: '30%', align: 'center' },
-      ],
-    }).virtual({ itemHeight: 40 }).describe('Cluster Ingress & Services'),
+    services: f.field(
+      s.array(
+        s.struct({
+          serviceName: s.string().describe('Service Name'),
+          port: s.number().integer().min(80).max(65535).describe('Port'),
+          replicas: s.number().integer().min(1).max(50).default(3).describe('Replicas'),
+        })
+      ).describe('Cluster Ingress & Services'),
+      {
+        widget: f.table({
+          sortable: true,
+          columns: [
+            { key: 'serviceName', label: 'Service', width: '40%' },
+            { key: 'port', label: 'Port', width: '30%', align: 'center' },
+            { key: 'replicas', label: 'Replicas', width: '30%', align: 'center' },
+          ],
+        }),
+        virtual: { enabled: true, itemHeight: 40 },
+      },
+    ),
   }),
 })`,
     sampleValid: `{
@@ -211,15 +229,18 @@ export const PLAYGROUND_PRESETS: PlaygroundPreset[] = [
     tone: 'info',
   }),
   nameRow: f.row({
-    firstName: f.string().min(2).describe('First Name'),
-    lastName: f.string().min(2).describe('Last Name'),
+    firstName: s.string().min(2).describe('First Name'),
+    lastName: s.string().min(2).describe('Last Name'),
   }, { gap: '1rem' }),
-  accountType: f.enum(['personal', 'business']).default('personal'),
+  accountType: s.enum(['personal', 'business']).default('personal'),
   businessInfo: f.when('accountType == "business"', {
-    companyName: f.string().describe('Registered Company'),
-    vatNumber: f.string().describe('Tax VAT ID'),
+    companyName: s.string().describe('Registered Company'),
+    vatNumber: s.string().describe('Tax VAT ID'),
   }),
-  interests: f.array(f.string()).asTags().describe('Skills & Tags'),
+  interests: f.field(
+    s.array(s.string()).describe('Skills & Tags'),
+    { widget: f.tags() },
+  ),
   submitBtn: f.button({ label: 'Save Profile', action: 'submit' }),
 })`,
     sampleValid: `{
@@ -242,22 +263,27 @@ export const PLAYGROUND_PRESETS: PlaygroundPreset[] = [
     name: 'Collection View Mode: Interactive Table',
     description: 'Array schema rendered as an interactive table with custom columns, widths, and footer aggregations.',
     code: `f.struct({
-  orderNumber: f.string().min(3).describe('Order Reference'),
-  items: f.array(
-    f.struct({
-      description: f.string().describe('Product Description'),
-      quantity: f.number().integer().positive().describe('Quantity'),
-      unitPrice: f.number().positive().describe('Unit Price ($)'),
-    })
-  ).asTable({
-    sortable: true,
-    columns: [
-      { key: 'description', label: 'Item Name', width: '50%' },
-      { key: 'quantity', label: 'Qty', width: '20%', align: 'center' },
-      { key: 'unitPrice', label: 'Price', width: '30%', align: 'right' },
-    ],
-    aggregations: [{ column: 'unitPrice', op: 'sum', label: 'Subtotal' }],
-  }).describe('Purchased Line Items'),
+  orderNumber: s.string().min(3).describe('Order Reference'),
+  items: f.field(
+    s.array(
+      s.struct({
+        description: s.string().describe('Product Description'),
+        quantity: s.number().integer().positive().describe('Quantity'),
+        unitPrice: s.number().positive().describe('Unit Price ($)'),
+      })
+    ).describe('Purchased Line Items'),
+    {
+      widget: f.table({
+        sortable: true,
+        columns: [
+          { key: 'description', label: 'Item Name', width: '50%' },
+          { key: 'quantity', label: 'Qty', width: '20%', align: 'center' },
+          { key: 'unitPrice', label: 'Price', width: '30%', align: 'right' },
+        ],
+        aggregations: [{ column: 'unitPrice', op: 'sum', label: 'Subtotal' }],
+      }),
+    },
+  ),
 })`,
     sampleValid: `{
   "orderNumber": "ORD-2026-X1",

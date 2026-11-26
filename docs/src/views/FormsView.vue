@@ -2,9 +2,11 @@
 import CodeBlock from '../components/CodeBlock.vue'
 import Callout from '../components/Callout.vue'
 
-const unifiedFormSnippet = `import { f } from '@collidor/struct/form'
+const unifiedFormSnippet = `import { s } from '@collidor/struct'
+import { f } from '@collidor/struct/form'
 
-// Unified Form Structure: UI layout, decorators, and data schemas unified
+// Unified Form Structure: UI layout, decorators, and data schemas unified.
+// Data schemas come from s.*; f.* is exclusively for form concerns.
 export const UserOnboardingForm = f.struct({
   banner: f.alert({
     title: 'Welcome',
@@ -13,21 +15,22 @@ export const UserOnboardingForm = f.struct({
   }),
 
   // Spatial Layout Container: 2 inputs on the same line!
+  // Raw s.* schemas are direct fields and get a default widget inferred.
   nameRow: f.row({
-    firstName: f.string().min(2).describe('Given Name'),
-    lastName: f.string().min(2).describe('Family Name'),
+    firstName: s.string().min(2).describe('Given Name'),
+    lastName: s.string().min(2).describe('Family Name'),
   }, { gap: '1rem' }),
 
-  accountType: f.enum(['personal', 'business'] as const).default('personal'),
+  accountType: s.enum(['personal', 'business'] as const).default('personal'),
 
   // Conditional rendering & validation coupling
   businessDetails: f.when('accountType == "business"', {
-    companyName: f.string().describe('Company Legal Name'),
-    vatNumber: f.string().describe('Tax VAT ID'),
+    companyName: s.string().describe('Company Legal Name'),
+    vatNumber: s.string().describe('Tax VAT ID'),
   }),
 
-  // Collection View Mode: tags
-  skills: f.array(f.string()).asTags().describe('Skills & Tags'),
+  // Explicit widget for a collection: f.field(schema, { widget })
+  skills: f.field(s.array(s.string()), { widget: f.tags() }),
 
   divider: f.divider(),
   submitBtn: f.button({ label: 'Complete Sign Up', action: 'submit' }),
@@ -42,37 +45,39 @@ const data = UserOnboardingForm.parse({
   skills: ['computing', 'logic'],
 })`
 
-const spatialLayoutSnippet = `import { f } from '@collidor/struct/form'
+const spatialLayoutSnippet = `import { s } from '@collidor/struct'
+import { f } from '@collidor/struct/form'
 
 const LayoutsForm = f.struct({
   // Horizontal line grouping
   credentialsRow: f.row({
-    username: f.string(),
-    password: f.string().meta({ widget: 'password' }),
+    username: s.string(),
+    password: s.string().meta({ widget: 'password' }),
   }, { gap: '1rem' }),
 
   // Responsive Grid
   addressGrid: f.grid({
-    street: f.string(),
-    apartment: f.string().optional(),
-    city: f.string(),
-    postalCode: f.string(),
+    street: s.string(),
+    apartment: s.string().optional(),
+    city: s.string(),
+    postalCode: s.string(),
   }, { columns: 2, gap: '0.75rem' }),
 
   // Multi-tab layout
   settingsTabs: f.tabs({
-    profile: f.section('Public Profile', { displayName: f.string() }),
-    security: f.section('Security', { twoFactorEnabled: f.boolean() }),
+    profile: f.section('Public Profile', { displayName: s.string() }),
+    security: f.section('Security', { twoFactorEnabled: s.boolean() }),
   }),
 })`
 
-const uiOnlySnippet = `import { f } from '@collidor/struct/form'
+const uiOnlySnippet = `import { s } from '@collidor/struct'
+import { f } from '@collidor/struct/form'
 
 const FormWithDecorators = f.struct({
   header: f.heading('Security Configuration', 2),
   alertBanner: f.alert({ message: 'Keep your secret key safe', tone: 'warning' }),
   spacer: f.spacer('1.5rem'),
-  apiKey: f.string(),
+  apiKey: s.string(),
   taxCalculation: f.computedDisplay('subtotal * 0.2', { label: 'Estimated Tax' }),
   separator: f.divider(),
   actionSlot: f.slot('custom-actions'),
@@ -81,38 +86,61 @@ const FormWithDecorators = f.struct({
 // None of header, alertBanner, spacer, taxCalculation, separator, or actionSlot
 // will appear in the parsed data payload!`
 
-const collectionViewSnippet = `import { f } from '@collidor/struct/form'
+const fieldWidgetSnippet = `import { s } from '@collidor/struct'
+import { f } from '@collidor/struct/form'
 
-const OrderForm = f.struct({
-  orderNumber: f.string(),
-  
-  // Array rendered as interactive table with column definitions & summary
-  items: f.array(
-    f.struct({
-      description: f.string(),
-      quantity: f.number().integer().min(1),
-      unitPrice: f.number().positive(),
-    })
-  ).asTable({
-    sortable: true,
-    columns: [
-      { key: 'description', label: 'Item Description', width: '50%' },
-      { key: 'quantity', label: 'Qty', width: '20%', align: 'center' },
-      { key: 'unitPrice', label: 'Unit Price', width: '30%', align: 'right' },
-    ],
-    aggregations: [{ column: 'unitPrice', op: 'sum', label: 'Order Subtotal' }],
-  }),
+const ProfileForm = f.struct({
+  // Raw s.* schema as a direct field: the default widget is inferred.
+  email: s.string().email(),
 
-  // Array rendered as repeater cards or tags
-  tags: f.array(f.string()).asTags({ maxTags: 5 }),
+  // f.field(schema, { widget }) picks the widget explicitly.
+  displayName: f.field(s.string().min(2), { widget: f.textInput() }),
+  bio: f.field(s.string().max(500), { widget: f.textarea().rows(4) }),
+
+  age: f.field(s.number().int().min(0), { widget: f.numberInput() }),
+  volume: f.field(s.number().min(0).max(100), { widget: f.slider() }),
+  priceRange: f.field(s.number().min(0).max(1000), { widget: f.range() }),
 })`
 
-const controllerSnippet = `import { f } from '@collidor/struct/form'
+const collectionViewSnippet = `import { s } from '@collidor/struct'
+import { f } from '@collidor/struct/form'
+
+const OrderForm = f.struct({
+  orderNumber: s.string(),
+
+  // s.array(...) rendered as an interactive table with column definitions & summary
+  items: f.field(
+    s.array(
+      s.struct({
+        description: s.string(),
+        quantity: s.number().integer().min(1),
+        unitPrice: s.number().positive(),
+      }),
+    ),
+    {
+      widget: f.table({
+        sortable: true,
+        columns: [
+          { key: 'description', label: 'Item Description', width: '50%' },
+          { key: 'quantity', label: 'Qty', width: '20%', align: 'center' },
+          { key: 'unitPrice', label: 'Unit Price', width: '30%', align: 'right' },
+        ],
+        aggregations: [{ column: 'unitPrice', op: 'sum', label: 'Order Subtotal' }],
+      }),
+    },
+  ),
+
+  // Primitive array rendered as tags
+  tags: f.field(s.array(s.string()), { widget: f.tags({ maxTags: 5 }) }),
+})`
+
+const controllerSnippet = `import { s } from '@collidor/struct'
+import { f } from '@collidor/struct/form'
 
 const CheckoutWizard = f.struct({
   steps: f.steps({
-    step1: f.section('Account', { email: f.string().email() }),
-    step2: f.section('Shipping', { address: f.string().min(5) }),
+    step1: f.section('Account', { email: s.string().email() }),
+    step2: f.section('Shipping', { address: s.string().min(5) }),
   }),
 })
 
@@ -135,28 +163,6 @@ const unsubscribe = controller.subscribe((state) => {
   console.log('Dirty:', state.dirty, 'Valid:', state.isValid, 'Errors:', state.errors)
 })`
 
-const formInspectorSnippet = `import { s, getFormFields, inferWidget } from '@collidor/struct'
-
-const SettingsSchema = s.struct({
-  apiKey: s.string().describe('API Access Key'),
-  volume: s.number().min(0).max(100).default(80).describe('Sound Output Level'),
-  notifications: s.boolean().default(true).describe('Enable push alerts'),
-  theme: s.enum(['dark', 'light', 'system']).default('system'),
-  feedback: s.string().meta({ widget: 'textarea' }).describe('Optional comments')
-})
-
-// Automatically infer UI form fields and widget metadata:
-const fields = getFormFields(SettingsSchema)
-/*
-[
-  { key: 'apiKey', label: 'ApiKey', widget: 'text', required: true, description: 'API Access Key' },
-  { key: 'volume', label: 'Volume', widget: 'slider', required: true, min: 0, max: 100, defaultValue: 80 },
-  { key: 'notifications', label: 'Notifications', widget: 'switch', required: true, defaultValue: true },
-  { key: 'theme', label: 'Theme', widget: 'select', required: true, options: [...] },
-  { key: 'feedback', label: 'Feedback', widget: 'textarea', required: true }
-]
-*/`
-
 const collidorUiSnippet = `<script setup vapor lang="ts">
 import { ref } from 'vue'
 import { SettingsSchema } from './schemas'
@@ -176,8 +182,8 @@ function onFieldChange(event: CustomEvent<{ fieldKey: string; fieldValue: unknow
     .schema="SettingsSchema"
     bordered
     submit-label="Save Preferences"
-    @submit="onFormSubmit"
-    @change="onFieldChange"
+    @ui-form-submit="onFormSubmit"
+    @ui-form-change="onFieldChange"
   />
 </template>`
 </script>
@@ -198,7 +204,74 @@ function onFieldChange(event: CustomEvent<{ fieldKey: string; fieldValue: unknow
       Import from <code>@collidor/struct/form</code> when you need UI layout trees, decorators, or form controllers.
     </Callout>
 
+    <Callout type="warning" title="Major release: f.* is form-only">
+      In the next major release, <code>f.*</code> is exclusively for form concerns. The data-schema builders on <code>f</code>
+      (<code>f.string()</code>, <code>f.number()</code>, <code>f.enum()</code>, <code>f.optional()</code>, <code>f.coerce</code>, ...)
+      are removed: use <code>s.*</code> data schemas, which are valid direct <code>f.struct</code> fields. The fluent array
+      presentation methods (<code>.asTable()</code>, <code>.asTags()</code>, ...) are replaced by collection widgets, see
+      <a href="#form-inspector">Fields &amp; Widgets</a> and <a href="#collection-views">Collection Widgets</a>.
+    </Callout>
+
     <CodeBlock title="unified-form.ts" language="typescript" :code="unifiedFormSnippet" />
+  </section>
+
+  <!-- 1b. Fields & Widgets -->
+  <!-- id kept as "form-inspector" so the existing sidebar entry in navigation.ts still resolves -->
+  <section id="form-inspector" class="docs-section">
+    <h2>Fields &amp; Widgets (<code>f.field</code>)</h2>
+    <p>
+      A raw <code>s.*</code> schema used directly as an <code>f.struct</code> field gets a default widget inferred from its type.
+      To choose the widget yourself, wrap the schema: <code>f.field(schema, &#123; widget &#125;)</code>.
+    </p>
+
+    <div class="widget-table-wrapper">
+      <table class="widget-table">
+        <thead>
+          <tr>
+            <th>Widget factory</th>
+            <th>Intended schema</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>f.textInput()</code></td>
+            <td><code>s.string()</code></td>
+          </tr>
+          <tr>
+            <td><code>f.textarea().rows(n)</code></td>
+            <td><code>s.string()</code></td>
+          </tr>
+          <tr>
+            <td><code>f.numberInput()</code></td>
+            <td><code>s.number()</code></td>
+          </tr>
+          <tr>
+            <td><code>f.slider()</code></td>
+            <td><code>s.number()</code></td>
+          </tr>
+          <tr>
+            <td><code>f.range()</code></td>
+            <td><code>s.number()</code></td>
+          </tr>
+          <tr>
+            <td><code>f.table(config)</code>, <code>f.tags(config)</code>, <code>f.list(config)</code>, <code>f.cards(config)</code>, <code>f.tabsWidget(config)</code>, <code>f.combobox(config)</code></td>
+            <td><code>s.array(...)</code> (see <a href="#collection-views">Collection Widgets</a>)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <CodeBlock title="field-widgets.ts" language="typescript" :code="fieldWidgetSnippet" />
+
+    <Callout type="info" title="Display text vs. text input">
+      <code>f.text(content)</code> remains a display-only informational node. It is not an input: use
+      <code>f.textInput()</code> or <code>f.textarea()</code> as a widget for editable strings.
+    </Callout>
+
+    <Callout type="warning" title="Renderer support">
+      This page describes the form-builder API. Support for each widget in the <code>&lt;ui-struct-form&gt;</code> renderer and the
+      Live Workbench is not guaranteed by this page; check the renderer's own release notes before relying on a specific widget there.
+    </Callout>
   </section>
 
   <!-- 2. Spatial Layouts -->
@@ -306,29 +379,38 @@ function onFieldChange(event: CustomEvent<{ fieldKey: string; fieldValue: unknow
 
   <!-- 5. Collection Views -->
   <section id="collection-views" class="docs-section">
-    <h2>Collection View Modes (Table, List, Cards)</h2>
+    <h2>Collection Widgets (Table, List, Cards, Tags, Tabs, Combobox)</h2>
     <p>
-      Arrays can define their UI presentation mode directly on the schema using fluent builder methods:
+      An array's UI presentation is a widget, passed to <code>f.field(s.array(...), &#123; widget &#125;)</code> by one of the
+      collection builders. These replace the removed <code>f.array(...).asTable()</code> / <code>.asTags()</code> family.
     </p>
     <div class="features-grid">
       <div class="feature-card">
-        <h3><code>.asTable(config)</code></h3>
+        <h3><code>f.table(config)</code></h3>
         <p>Renders items as an interactive data table with column widths, sorting, and footer aggregations (sum, avg, count).</p>
       </div>
       <div class="feature-card">
-        <h3><code>.asList(config)</code></h3>
+        <h3><code>f.list(config)</code></h3>
         <p>Repeater list with dynamic item headers, reordering, and collapsible cards.</p>
       </div>
       <div class="feature-card">
-        <h3><code>.asCards(config)</code></h3>
+        <h3><code>f.cards(config)</code></h3>
         <p>Responsive card grid for complex item structs.</p>
       </div>
       <div class="feature-card">
-        <h3><code>.asTags(config)</code></h3>
+        <h3><code>f.tags(config)</code></h3>
         <p>Compact tag or chip collection for primitive arrays.</p>
       </div>
+      <div class="feature-card">
+        <h3><code>f.tabsWidget(config)</code></h3>
+        <p>Presents array items as tabbed panels.</p>
+      </div>
+      <div class="feature-card">
+        <h3><code>f.combobox(config)</code></h3>
+        <p>Searchable selection control for choosing array values.</p>
+      </div>
     </div>
-    <CodeBlock title="collection-views.ts" language="typescript" :code="collectionViewSnippet" />
+    <CodeBlock title="collection-widgets.ts" language="typescript" :code="collectionViewSnippet" />
   </section>
 
   <!-- 6. Headless Form Controller -->
@@ -340,64 +422,16 @@ function onFieldChange(event: CustomEvent<{ fieldKey: string; fieldValue: unknow
     <CodeBlock title="form-controller.ts" language="typescript" :code="controllerSnippet" />
   </section>
 
-  <!-- 7. Legacy Form Inspector -->
-  <section id="form-inspector" class="docs-section">
-    <h2>Form Inspector &amp; Widget Heuristics</h2>
-    <p>
-      <code>@collidor/struct</code> also includes the low-level <code>getFormFields</code> inspection function that extracts UI metadata and widget inferences:
-    </p>
-    <CodeBlock title="form-inspector.ts" language="typescript" :code="formInspectorSnippet" />
-
-    <div class="widget-table-wrapper">
-      <table class="widget-table">
-        <thead>
-          <tr>
-            <th>Schema Kind / Rule</th>
-            <th>Default Inferred Widget</th>
-            <th>Override with <code>.meta(&#123; widget &#125;)</code></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><code>s.string()</code></td>
-            <td><code>'text'</code></td>
-            <td><code>'textarea' | 'password' | 'color' | 'date'</code></td>
-          </tr>
-          <tr>
-            <td><code>s.number().min(a).max(b)</code></td>
-            <td><code>'slider'</code></td>
-            <td><code>'number' | 'stepper'</code></td>
-          </tr>
-          <tr>
-            <td><code>s.number()</code> (unbounded)</td>
-            <td><code>'number'</code></td>
-            <td><code>'stepper' | 'slider'</code></td>
-          </tr>
-          <tr>
-            <td><code>s.boolean()</code></td>
-            <td><code>'switch'</code></td>
-            <td><code>'checkbox'</code></td>
-          </tr>
-          <tr>
-            <td><code>s.enum([...])</code></td>
-            <td><code>'select'</code></td>
-            <td><code>'radio-group' | 'segmented-control'</code></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
-
-  <!-- 8. Native UI Form Component -->
+  <!-- 7. Native UI Form Component -->
   <section id="collidor-ui-form" class="docs-section">
     <h2>Native <code>&lt;ui-struct-form&gt;</code> Integration</h2>
     <p>
       The <code>@collidor/ui</code> Web Component library contains a native <code>&lt;ui-struct-form&gt;</code> component.
-      Pass any struct schema directly to its <code>.schema</code> property to generate fully functional forms styled with Golden Ratio spacing and OKLCH color palettes:
+      The published 0.1.0 renderer supports basic, flat schemas. It does not consume the form tree and cannot render nested tables, dialogs, layouts, or the new widget builders.
     </p>
     <CodeBlock title="SettingsForm.vue" language="vue" :code="collidorUiSnippet" />
-    <Callout type="tip" title="Try it Live!">
-      Head to the <a href="#workbench">Live Workbench</a> below to see <code>&lt;ui-struct-form&gt;</code> and <code>Form Tree (AST)</code> in action!
+    <Callout type="warning" title="Renderer compatibility">
+      The <a href="#workbench">Live Workbench</a> can inspect the form tree, but advanced form rendering requires an updated UI renderer.
     </Callout>
   </section>
 </template>
