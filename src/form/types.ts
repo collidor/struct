@@ -72,11 +72,12 @@ export interface LayoutContainerOptions {
   align?: string
   ratio?: [number, number]
   orientation?: 'horizontal' | 'vertical'
+  /** Accordion: whether its panels start open. A panel's own `defaultOpen` wins. */
   defaultOpen?: boolean
+  /** Tabs: the key of the tab shown first (the first tab when omitted). */
   defaultTab?: string
-  icon?: string
+  /** Steps: check a step before moving past it (default true). */
   validateOnNext?: boolean
-  meta?: Record<string, unknown>
 }
 
 export interface LayoutContainerMarker<TShape = Record<string, any>> {
@@ -118,6 +119,10 @@ export type FormConditionFn = (
 export type FormCondition = string | boolean | FormConditionRule | FormConditionFn
 
 export interface ConditionalOptions {
+  /**
+   * Keep the values of the branch that is not active in the parsed output. They are not validated
+   * (they may be stale), only carried along; by default they are dropped.
+   */
   keepHidden?: boolean
 }
 
@@ -304,6 +309,8 @@ export interface FormFieldNode {
   defaultValue?: unknown
   type: string
   descriptor: TypeDescriptor
+  /** For a field with `derive`: its value right now. */
+  derivedValue?: unknown
   /** Nested object fields; their paths are relative to this form's root. */
   children?: FormNode[]
   /** Template for an array item; [] in paths denotes the item index. */

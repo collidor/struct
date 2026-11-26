@@ -41,6 +41,8 @@ export interface FormState<T extends Record<string, unknown> = Record<string, un
   activeSteps: Record<string, number>
   /** Active tab of every `tabs` container, by node id. */
   activeTabs: Record<string, string>
+  /** Panels the user has opened or closed in `accordion` containers, by container id then panel key. */
+  openPanels: Record<string, Record<string, boolean>>
   /** Messages that stopped the user leaving a step, by container id. */
   stepErrors: Record<string, string[]>
   tree: FormNodeTree
@@ -85,6 +87,7 @@ export abstract class FormSession<T extends Record<string, unknown> = Record<str
   protected touched = new Set<string>()
   protected activeSteps: Record<string, number> = {}
   protected activeTabs: Record<string, string> = {}
+  protected openPanels: Record<string, Record<string, boolean>> = {}
   protected stepErrors: Record<string, string[]> = {}
   protected isSubmitting = false
   protected listeners = new Set<(state: FormState<T>) => void>()
@@ -357,6 +360,30 @@ export abstract class FormSession<T extends Record<string, unknown> = Record<str
     return this.setStep(stepIndex, containerId)
   }
 
+  // --- accordions ----------------------------------------------------------------------
+
+  /**
+   * Whether a panel of an accordion is open: what the user chose, else the panel's own
+   * `defaultOpen`, else the accordion's, else closed.
+   */
+  public isOpen(containerId: string, panelKey: string): boolean {
+    const chosen = this.openPanels[containerId]?.[panelKey]
+    if (chosen !== undefined) return chosen
+    const container = this.findContainer(containerId, ['accordion'])
+    const panel = container?.children.find((child) => child.key === panelKey)
+    const own = panel?.kind === 'layout' ? panel.options?.defaultOpen : undefined
+    return own ?? container?.options?.defaultOpen ?? false
+  }
+
+  public setOpen(containerId: string, panelKey: string, open: boolean): void {
+    this.openPanels = { ...this.openPanels, [containerId]: { ...this.openPanels[containerId], [panelKey]: open } }
+    this.notify()
+  }
+
+  public toggleOpen(containerId: string, panelKey: string): void {
+    this.setOpen(containerId, panelKey, !this.isOpen(containerId, panelKey))
+  }
+
   /** Messages that stopped the user leaving a step of this container. */
   public getStepErrors(containerId: string): string[] {
     return this.stepErrors[containerId] ?? []
@@ -364,9 +391,12 @@ export abstract class FormSession<T extends Record<string, unknown> = Record<str
 
   // --- tabs ----------------------------------------------------------------------------
 
-  /** The active tab key of a container; the first tab until one is chosen. */
+  /** The active tab key of a container: the chosen one, else its `defaultTab`, else the first tab. */
   public getTab(containerId: string): string | undefined {
-    return this.activeTabs[containerId] ?? this.findContainer(containerId, ['tabs'])?.children[0]?.key
+    if (this.activeTabs[containerId] !== undefined) return this.activeTabs[containerId]
+    const container = this.findContainer(containerId, ['tabs'])
+    const wanted = container?.options?.defaultTab
+    return container?.children.some((child) => child.key === wanted) ? wanted : container?.children[0]?.key
   }
 
   public setTab(containerId: string, key: string): void {
@@ -425,6 +455,7 @@ export abstract class FormSession<T extends Record<string, unknown> = Record<str
       totalSteps: this.getTotalSteps(),
       activeSteps: { ...this.activeSteps },
       activeTabs: { ...this.activeTabs },
+      openPanels: { ...this.openPanels },
       stepErrors: { ...this.stepErrors },
       tree: this.getTree(),
     }

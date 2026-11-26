@@ -5,8 +5,9 @@ import { ArraySchema } from '../../builders/array'
 import { StructSchema } from '../../builders/struct'
 import type { StructIssue } from '../../core/errors'
 import { cloneDescriptor } from '../../utils/clone'
-import { createFieldNode } from '../fieldNode'
-import { isFormField } from '../field'
+import { createFieldNode, evaluateDerive } from '../fieldNode'
+import { isAvailable, resolveOptions } from '../options'
+import { isFormField, type FormFieldOptions } from '../field'
 import { PathScope, ITEM, type PathInput, type PathSegment } from '../paths'
 import { evaluateExpression } from '../../computed/astEvaluator'
 import { isUIOnlyNode, UIOnlyNode } from '../nodes/uiOnly'
@@ -22,6 +23,11 @@ import type {
   FormNodeTree,
   FormContext,
 } from '../types'
+
+/** Nothing was entered: no value, an empty string, or an empty list. */
+function isBlank(value: unknown): boolean {
+  return value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0)
+}
 
 function checkObject(
   value: unknown,
@@ -117,7 +123,10 @@ export class FormStructSchema<
       }
       const schema = isFormField(item) ? item.schema : item
       if (schema instanceof BaseSchema) {
-        out[key] = conditional ? { ...schema.descriptor, optional: true } : schema.descriptor
+        const opts = isFormField(item) ? item.options : undefined
+        // `requiredWhen` and `derive` decide presence themselves, so a plain descriptor cannot demand it
+        const decidesItself = opts?.requiredWhen !== undefined || opts?.derive !== undefined
+        out[key] = conditional || decidesItself ? { ...schema.descriptor, optional: true } : schema.descriptor
       }
     }
   }
@@ -188,6 +197,74 @@ export class FormStructSchema<
     return { value: result as InferFormOutput<TShape> }
   }
 
+  /**
+   * The field options that change what a value means: `derive` replaces it, `requiredWhen` decides
+   * whether empty is acceptable. Returns what to do instead of running the schema, or `undefined`
+   * to validate normally.
+   */
+  private _gate(
+    key: string,
+    path: ReadonlyArray<string | number>,
+    options: FormFieldOptions | undefined,
+    valObj: Record<string, unknown>,
+  ): { value?: unknown; issue?: StructIssue } | undefined {
+    if (!options) return undefined
+    const context = this._conditionContext(valObj)
+    if (options.derive !== undefined) return { value: evaluateDerive(options.derive, valObj, context) }
+    if (options.requiredWhen !== undefined && isBlank(valObj[key])) {
+      return evaluateCondition(options.requiredWhen, valObj, context)
+        ? { issue: { path: [...path, key], message: `Field "${key}" is required`, code: 'required' } }
+        : {}
+    }
+    return undefined
+  }
+
+  /** A value that is not among the choices available right now (so a stale child of a changed parent fails). */
+  private _optionIssue(
+    key: string,
+    path: ReadonlyArray<string | number>,
+    options: FormFieldOptions | undefined,
+    valObj: Record<string, unknown>,
+    value: unknown,
+  ): StructIssue | undefined {
+    if (options?.options === undefined || isBlank(value)) return undefined
+    const available = resolveOptions(options.options, valObj, this._conditionContext(valObj))
+    if (isAvailable(available, value)) return undefined
+    return {
+      path: [...path, key],
+      message: `"${String(value)}" is not an available choice for "${key}"`,
+      code: 'invalid_option',
+    }
+  }
+
+  /** The data keys of a branch, through layouts and nested conditionals. */
+  private static dataKeys(shape: Record<string, any>, out: string[] = []): string[] {
+    for (const [key, item] of Object.entries(shape)) {
+      if (isUIOnlyNode(item)) continue
+      if (isLayoutContainerNode(item)) FormStructSchema.dataKeys(item.shape, out)
+      else if (isConditionalNode(item)) {
+        FormStructSchema.dataKeys(item.branch, out)
+        if (item.elseBranch) FormStructSchema.dataKeys(item.elseBranch, out)
+      } else out.push(key)
+    }
+    return out
+  }
+
+  /** `keepHidden`: carry the inactive branch's values into the output, unvalidated. */
+  private _keepInactive(
+    item: ConditionalNode,
+    active: boolean,
+    valObj: Record<string, unknown>,
+    result: Record<string, unknown>,
+  ): void {
+    if (!item.options?.keepHidden) return
+    const inactive = active ? item.elseBranch : item.branch
+    if (!inactive) return
+    for (const key of FormStructSchema.dataKeys(inactive)) {
+      if (valObj[key] !== undefined && !(key in result)) result[key] = valObj[key]
+    }
+  }
+
   private _validateSubShapeSync(
     subShape: Record<string, any>,
     valObj: Record<string, unknown>,
@@ -214,18 +291,28 @@ export class FormStructSchema<
         } else if (item.elseBranch) {
           this._validateSubShapeSync(item.elseBranch, valObj, path, result, issues)
         }
+        this._keepInactive(item, isActive, valObj, result)
         continue
       }
 
       const schema = isFormField(item) ? item.schema : item
       if (schema instanceof BaseSchema) {
         const fieldPath = [...path, key]
+        const options = isFormField(item) ? item.options : undefined
+        const gate = this._gate(key, path, options, valObj)
+        if (gate) {
+          if (gate.issue) issues.push(gate.issue)
+          else if (gate.value !== undefined) result[key] = gate.value
+          continue
+        }
         const validation = schema._validateWithRefinements(valObj[key], fieldPath)
         if (validation.issues && validation.issues.length > 0) {
           issues.push(...validation.issues)
-        } else if (validation.value !== undefined) {
-          result[key] = validation.value
+          continue
         }
+        const bad = this._optionIssue(key, path, options, valObj, validation.value)
+        if (bad) issues.push(bad)
+        else if (validation.value !== undefined) result[key] = validation.value
       }
     }
   }
@@ -278,18 +365,28 @@ export class FormStructSchema<
         } else if (item.elseBranch) {
           await this._validateSubShapeAsync(item.elseBranch, valObj, path, result, issues)
         }
+        this._keepInactive(item, isActive, valObj, result)
         continue
       }
 
       const schema = isFormField(item) ? item.schema : item
       if (schema instanceof BaseSchema) {
         const fieldPath = [...path, key]
+        const options = isFormField(item) ? item.options : undefined
+        const gate = this._gate(key, path, options, valObj)
+        if (gate) {
+          if (gate.issue) issues.push(gate.issue)
+          else if (gate.value !== undefined) result[key] = gate.value
+          continue
+        }
         const validation = await schema._validateWithRefinementsAsync(valObj[key], fieldPath)
         if (validation.issues && validation.issues.length > 0) {
           issues.push(...validation.issues)
-        } else if (validation.value !== undefined) {
-          result[key] = validation.value
+          continue
         }
+        const bad = this._optionIssue(key, path, options, valObj, validation.value)
+        if (bad) issues.push(bad)
+        else if (validation.value !== undefined) result[key] = validation.value
       }
     }
   }
@@ -453,6 +550,7 @@ export class FormStructSchema<
           path: currentPath,
           descriptor: schema.descriptor,
           options: field?.options,
+          context,
         })
 
 

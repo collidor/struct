@@ -820,3 +820,72 @@ describe('wizard navigation properties', () => {
     )
   })
 })
+
+// ---------------------------------------------------------------------------
+// Reactive field options against a plain statement of the rules
+// ---------------------------------------------------------------------------
+
+describe('reactive option properties', () => {
+  const CITIES: Record<string, string[]> = { DE: ['Berlin', 'Munich'], FR: ['Paris'] }
+  const form = f.struct({
+    qty: s.number(),
+    flag: s.boolean(),
+    country: s.string(),
+    locked: f.field(s.string().optional(), { disabledWhen: 'qty > 5', readonlyWhen: 'flag', hiddenWhen: 'qty == 0' }),
+    reason: f.field(s.string().min(2), { requiredWhen: 'flag && qty > 1' }),
+    city: f.field(s.string().optional(), { options: { by: 'country', map: CITIES } }),
+    total: f.field(s.number().optional(), { derive: 'qty * 2' }),
+  })
+
+  const data = fc.record({
+    qty: fc.integer({ min: 0, max: 9 }),
+    flag: fc.boolean(),
+    country: fc.constantFrom('DE', 'FR', 'XX'),
+    locked: fc.option(fc.constant('l'), { nil: undefined }),
+    reason: fc.option(fc.constantFrom('', 'a', 'ok'), { nil: undefined }),
+    city: fc.option(fc.constantFrom('Berlin', 'Paris', 'Rome'), { nil: undefined }),
+    total: fc.option(fc.integer(), { nil: undefined }),
+  })
+
+  it('the tree shows the flags a plain function of the values would', () => {
+    fc.assert(
+      fc.property(data, (v) => {
+        const { fieldsByKey: n } = form.toFormTree(v)
+        expect(n.locked.disabled).toBe(v.qty > 5)
+        expect(n.locked.readonly).toBe(v.flag)
+        expect(n.locked.hidden).toBe(v.qty === 0)
+        expect(n.reason.required).toBe(v.flag && v.qty > 1)
+        expect(n.city.options?.map((o) => o.value)).toEqual(CITIES[v.country] ?? [])
+        expect(n.total.derivedValue).toBe(v.qty * 2)
+      }),
+      runs,
+    )
+  })
+
+  it('validation accepts and rejects exactly what the rules say', () => {
+    fc.assert(
+      fc.property(data, (v) => {
+        const issues = (form.safeParse(v).issues ?? []).map((i) => i.path?.join('.')).sort()
+        const expected: string[] = []
+        const required = v.flag && v.qty > 1
+        const reasonEmpty = v.reason === undefined || v.reason === ''
+        if (required && reasonEmpty) expected.push('reason')
+        // a value that is given must satisfy the schema, whether or not it is required
+        else if (!reasonEmpty && v.reason!.length < 2) expected.push('reason')
+        if (v.city !== undefined && !(CITIES[v.country] ?? []).includes(v.city)) expected.push('city')
+        expect(issues).toEqual(expected.sort())
+      }),
+      runs,
+    )
+  })
+
+  it('the parsed output always carries the computed value', () => {
+    fc.assert(
+      fc.property(data, (v) => {
+        const result = form.safeParse(v)
+        if (result.success) expect((result.data as any).total).toBe(v.qty * 2)
+      }),
+      runs,
+    )
+  })
+})

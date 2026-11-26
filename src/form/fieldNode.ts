@@ -2,8 +2,12 @@
 import type { StructDescriptor, TypeDescriptor } from '../types/ast'
 import { inferWidget } from '../dynamic/formInspector'
 import type { FormFieldOptions } from './field'
-import type { FormFieldNode, FormNode, FormNodeTree } from './types'
+import type { FormContext, FormFieldNode, FormNode, FormNodeTree } from './types'
+import { evaluateCondition } from './nodes/conditional'
+import { evaluateExpression } from '../computed/astEvaluator'
+import { resolveOptions } from './options'
 import { indexFieldNodes } from './relative'
+import type { FormCondition } from './types'
 import {
   normalizeHttpConfig,
   normalizePaginationConfig,
@@ -38,6 +42,22 @@ export interface CreateFieldNodeInput {
    * `f.field`, so it ignores them; a descriptor that arrives as plain JSON has nowhere else to say.
    */
   honorDescriptorHints?: boolean
+  /** Where the field sits in the form's values, so the reactive options can be evaluated. */
+  context?: FormContext
+}
+
+/** The value a `derive` option gives, from an expression or a function. */
+export function evaluateDerive(
+  derive: NonNullable<FormFieldOptions['derive']>,
+  values: Record<string, unknown>,
+  context?: FormContext,
+): unknown {
+  try {
+    if (typeof derive === 'function') return derive(values, context)
+    return evaluateExpression(derive, context?.scope ? context.scope.context() : values)
+  } catch {
+    return undefined
+  }
 }
 
 /**
@@ -50,6 +70,7 @@ export function createFieldNode({
   descriptor,
   options,
   honorDescriptorHints = false,
+  context,
 }: CreateFieldNodeInput): FormFieldNode {
   const meta = descriptor.metadata || {}
   const inferred = inferWidget(
@@ -66,6 +87,13 @@ export function createFieldNode({
 
   const dataSource = normalizeDataSource(options?.dataSource)
 
+  // Reactive options need the values; a descriptor-only tree has none and keeps the static settings.
+  const holds = (condition: FormCondition | undefined): boolean | undefined =>
+    condition === undefined || !context ? undefined : evaluateCondition(condition, context.values, context)
+  const derived = options?.derive !== undefined && context ? evaluateDerive(options.derive, context.values, context) : undefined
+  const choices = options?.options !== undefined && context ? resolveOptions(options.options, context.values, context) : undefined
+  const requiredNow = holds(options?.requiredWhen)
+
   return {
     kind: 'field',
     id: path,
@@ -77,11 +105,13 @@ export function createFieldNode({
     helpText: options?.helpText,
     widget,
     widgetProps: props,
-    options: props.options as FormFieldNode['options'],
-    required: !descriptor.optional && descriptor.default === undefined,
-    disabled: options?.disabled ?? false,
-    readonly: options?.readonly ?? false,
-    hidden: options?.hidden ?? false,
+    options: choices ?? (props.options as FormFieldNode['options']),
+    required: requiredNow ?? (options?.derive === undefined && !descriptor.optional && descriptor.default === undefined),
+    disabled: (options?.disabled ?? false) || (holds(options?.disabledWhen) ?? false),
+    // a computed value is shown, not edited
+    readonly: (options?.readonly ?? false) || (holds(options?.readonlyWhen) ?? false) || options?.derive !== undefined,
+    hidden: (options?.hidden ?? false) || (holds(options?.hiddenWhen) ?? false),
+    ...(options?.derive !== undefined ? { derivedValue: derived } : {}),
     colSpan: options?.colSpan,
     defaultValue: descriptor.default,
     type: descriptor.kind,

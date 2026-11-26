@@ -2,6 +2,8 @@ import type { BaseSchema } from '../core/base'
 import type { DataSourceConfig, VirtualScrollConfig, AsyncPaginationConfig } from '../types/ast'
 
 import type { FormWidget, WidgetForValue } from './widgets'
+import type { OptionsSpec } from './options'
+import type { FormCondition, FormContext } from './types'
 
 /** Presentation settings attached to a field rather than its data schema. */
 export interface FormFieldOptions<TWidget extends FormWidget = FormWidget> {
@@ -14,6 +16,28 @@ export interface FormFieldOptions<TWidget extends FormWidget = FormWidget> {
   readonly?: boolean
   hidden?: boolean
   colSpan?: number
+  /**
+   * Conditions, in the same language as `f.when` and scoped the same way (a bare name is a sibling,
+   * `$root` / `$parent` / `$item` reach outward). They are evaluated against the current values.
+   */
+  disabledWhen?: FormCondition
+  readonlyWhen?: FormCondition
+  hiddenWhen?: FormCondition
+  /**
+   * Decides whether the field is required, replacing what the schema says: while true an empty value
+   * is an error, while false an empty value is fine.
+   */
+  requiredWhen?: FormCondition
+  /**
+   * The choices for a select, radio or combobox. A value outside the current choices is invalid, so
+   * with `{ by: 'country', map }` a city left over from another country is rejected.
+   */
+  options?: OptionsSpec
+  /**
+   * Makes the field a computed value: an expression over the other fields, or a function. The
+   * parsed output always holds the computed value; the input value is ignored. Shown read-only.
+   */
+  derive?: string | ((values: Record<string, unknown>, context?: FormContext) => unknown)
   dataSource?: DataSourceConfig
   /** `true` for sensible defaults, or a partial config. */
   virtual?: Partial<VirtualScrollConfig> | boolean

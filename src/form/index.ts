@@ -53,6 +53,15 @@ export {
   type FormSessionOptions,
 } from './controller/session'
 export { ScopedFormController, type ScopedFormOptions } from './controller/scopedController'
+export {
+  isAvailable,
+  resolveOptions,
+  normalizeOptionItems,
+  type OptionItem,
+  type OptionsSpec,
+  type DependentOptions,
+  type ResolvedOption,
+} from './options'
 export { createFieldNode, descriptorFieldNodes, descriptorToFormTree, type CreateFieldNodeInput } from './fieldNode'
 export { relativizeNodes, flattenFieldNodes, findFieldNode, indexFieldNodes, rowDefaults } from './relative'
 
