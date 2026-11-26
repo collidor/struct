@@ -51,7 +51,9 @@ function checkArrayPrechecks(
 
 export class ArraySchema<
   TItem extends BaseSchema<any, any> = BaseSchema<any, any>,
-> extends BaseSchema<InferInput<TItem>[], Infer<TItem>[]> {
+  TInput = InferInput<TItem>[],
+  TOutput = Infer<TItem>[],
+> extends BaseSchema<TInput, TOutput> {
   declare descriptor: ArrayDescriptor
   public readonly itemSchema: TItem
 
@@ -65,7 +67,36 @@ export class ArraySchema<
     this.itemSchema = itemSchema
   }
 
-  _validate(
+  _validate(value: unknown, path: ReadonlyArray<string | number> = []): ValidateResult<TOutput> {
+    return this._check(value, path) as unknown as ValidateResult<TOutput>
+  }
+
+  public override async _validateAsync(
+    value: unknown,
+    path: ReadonlyArray<string | number> = [],
+  ): ValidateAsyncResult<TOutput> {
+    return (await this._checkAsync(value, path)) as unknown as ValidateResult<TOutput>
+  }
+
+  // Constraints can still be chained after a modifier: each returns this same class with the
+  // widened input and output, so `.optional().min(1)` keeps its methods and its types.
+  public override optional(): ArraySchema<TItem, TInput | undefined, TOutput | undefined> {
+    return super.optional() as unknown as ArraySchema<TItem, TInput | undefined, TOutput | undefined>
+  }
+
+  public override nullable(): ArraySchema<TItem, TInput | null, TOutput | null> {
+    return super.nullable() as unknown as ArraySchema<TItem, TInput | null, TOutput | null>
+  }
+
+  public override nullish(): ArraySchema<TItem, TInput | null | undefined, TOutput | null | undefined> {
+    return super.nullish() as unknown as ArraySchema<TItem, TInput | null | undefined, TOutput | null | undefined>
+  }
+
+  public override default(value: TOutput | (() => TOutput)): ArraySchema<TItem, TInput | undefined, TOutput> {
+    return super.default(value) as unknown as ArraySchema<TItem, TInput | undefined, TOutput>
+  }
+
+  private _check(
     value: unknown,
     path: ReadonlyArray<string | number> = [],
   ): ValidateResult<Infer<TItem>[]> {
@@ -94,7 +125,7 @@ export class ArraySchema<
     return { value: result }
   }
 
-  public override async _validateAsync(
+  private async _checkAsync(
     value: unknown,
     path: ReadonlyArray<string | number> = [],
   ): ValidateAsyncResult<Infer<TItem>[]> {

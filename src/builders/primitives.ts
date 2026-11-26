@@ -12,7 +12,7 @@ import type {
 } from '../types/ast'
 import type { StructIssue } from '../core/errors'
 
-export class StringSchema<TInput = string> extends BaseSchema<TInput, string> {
+export class StringSchema<TInput = string, TOutput = string> extends BaseSchema<TInput, TOutput> {
   declare descriptor: StringDescriptor
 
   constructor(descriptor: Partial<StringDescriptor> = {}) {
@@ -22,7 +22,29 @@ export class StringSchema<TInput = string> extends BaseSchema<TInput, string> {
     } as StringDescriptor)
   }
 
-  _validate(value: unknown, path: ReadonlyArray<string | number> = []): ValidateResult<string> {
+  _validate(value: unknown, path: ReadonlyArray<string | number> = []): ValidateResult<TOutput> {
+    return this._check(value, path) as unknown as ValidateResult<TOutput>
+  }
+
+  // Constraints can still be chained after a modifier: each returns this same class with the
+  // widened input and output, so `.optional().min(1)` keeps its methods and its types.
+  public override optional(): StringSchema<TInput | undefined, TOutput | undefined> {
+    return super.optional() as unknown as StringSchema<TInput | undefined, TOutput | undefined>
+  }
+
+  public override nullable(): StringSchema<TInput | null, TOutput | null> {
+    return super.nullable() as unknown as StringSchema<TInput | null, TOutput | null>
+  }
+
+  public override nullish(): StringSchema<TInput | null | undefined, TOutput | null | undefined> {
+    return super.nullish() as unknown as StringSchema<TInput | null | undefined, TOutput | null | undefined>
+  }
+
+  public override default(value: TOutput | (() => TOutput)): StringSchema<TInput | undefined, TOutput> {
+    return super.default(value) as unknown as StringSchema<TInput | undefined, TOutput>
+  }
+
+  private _check(value: unknown, path: ReadonlyArray<string | number> = []): ValidateResult<string> {
     let strVal = value
     if (this.descriptor.coerce && strVal !== undefined && strVal !== null) {
       strVal = String(strVal)
@@ -292,7 +314,7 @@ function validateBounds<T extends number | bigint>(
   return issues
 }
 
-export class NumberSchema<TInput = number> extends BaseSchema<TInput, number> {
+export class NumberSchema<TInput = number, TOutput = number> extends BaseSchema<TInput, TOutput> {
   declare descriptor: NumberDescriptor
 
   constructor(descriptor: Partial<NumberDescriptor> = {}) {
@@ -302,7 +324,29 @@ export class NumberSchema<TInput = number> extends BaseSchema<TInput, number> {
     } as NumberDescriptor)
   }
 
-  _validate(value: unknown, path: ReadonlyArray<string | number> = []): ValidateResult<number> {
+  _validate(value: unknown, path: ReadonlyArray<string | number> = []): ValidateResult<TOutput> {
+    return this._check(value, path) as unknown as ValidateResult<TOutput>
+  }
+
+  // Constraints can still be chained after a modifier: each returns this same class with the
+  // widened input and output, so `.optional().min(1)` keeps its methods and its types.
+  public override optional(): NumberSchema<TInput | undefined, TOutput | undefined> {
+    return super.optional() as unknown as NumberSchema<TInput | undefined, TOutput | undefined>
+  }
+
+  public override nullable(): NumberSchema<TInput | null, TOutput | null> {
+    return super.nullable() as unknown as NumberSchema<TInput | null, TOutput | null>
+  }
+
+  public override nullish(): NumberSchema<TInput | null | undefined, TOutput | null | undefined> {
+    return super.nullish() as unknown as NumberSchema<TInput | null | undefined, TOutput | null | undefined>
+  }
+
+  public override default(value: TOutput | (() => TOutput)): NumberSchema<TInput | undefined, TOutput> {
+    return super.default(value) as unknown as NumberSchema<TInput | undefined, TOutput>
+  }
+
+  private _check(value: unknown, path: ReadonlyArray<string | number> = []): ValidateResult<number> {
     let numVal = value
     if (this.descriptor.coerce && numVal !== undefined && numVal !== null) {
       if (typeof numVal === 'string' && numVal.trim() !== '') {
@@ -501,7 +545,7 @@ export class BooleanSchema<TInput = boolean> extends BaseSchema<TInput, boolean>
   }
 }
 
-export class DateSchema<TInput = Date> extends BaseSchema<TInput, Date> {
+export class DateSchema<TInput = Date, TOutput = Date> extends BaseSchema<TInput, TOutput> {
   declare descriptor: DateDescriptor
 
   constructor(descriptor: Partial<DateDescriptor> = {}) {
@@ -511,7 +555,29 @@ export class DateSchema<TInput = Date> extends BaseSchema<TInput, Date> {
     } as DateDescriptor)
   }
 
-  _validate(value: unknown, path: ReadonlyArray<string | number> = []): ValidateResult<Date> {
+  _validate(value: unknown, path: ReadonlyArray<string | number> = []): ValidateResult<TOutput> {
+    return this._check(value, path) as unknown as ValidateResult<TOutput>
+  }
+
+  // Constraints can still be chained after a modifier: each returns this same class with the
+  // widened input and output, so `.optional().min(1)` keeps its methods and its types.
+  public override optional(): DateSchema<TInput | undefined, TOutput | undefined> {
+    return super.optional() as unknown as DateSchema<TInput | undefined, TOutput | undefined>
+  }
+
+  public override nullable(): DateSchema<TInput | null, TOutput | null> {
+    return super.nullable() as unknown as DateSchema<TInput | null, TOutput | null>
+  }
+
+  public override nullish(): DateSchema<TInput | null | undefined, TOutput | null | undefined> {
+    return super.nullish() as unknown as DateSchema<TInput | null | undefined, TOutput | null | undefined>
+  }
+
+  public override default(value: TOutput | (() => TOutput)): DateSchema<TInput | undefined, TOutput> {
+    return super.default(value) as unknown as DateSchema<TInput | undefined, TOutput>
+  }
+
+  private _check(value: unknown, path: ReadonlyArray<string | number> = []): ValidateResult<Date> {
     let dateVal = value
     if (this.descriptor.coerce && dateVal !== undefined && dateVal !== null) {
       if (typeof dateVal === 'string' || typeof dateVal === 'number' || dateVal instanceof Date) {
@@ -579,7 +645,7 @@ export class DateSchema<TInput = Date> extends BaseSchema<TInput, Date> {
   }
 }
 
-export class BigIntSchema<TInput = bigint> extends BaseSchema<TInput, bigint> {
+export class BigIntSchema<TInput = bigint, TOutput = bigint> extends BaseSchema<TInput, TOutput> {
   declare descriptor: BigIntDescriptor
 
   constructor(descriptor: Partial<BigIntDescriptor> = {}) {
@@ -589,7 +655,29 @@ export class BigIntSchema<TInput = bigint> extends BaseSchema<TInput, bigint> {
     } as BigIntDescriptor)
   }
 
-  _validate(value: unknown, path: ReadonlyArray<string | number> = []): ValidateResult<bigint> {
+  _validate(value: unknown, path: ReadonlyArray<string | number> = []): ValidateResult<TOutput> {
+    return this._check(value, path) as unknown as ValidateResult<TOutput>
+  }
+
+  // Constraints can still be chained after a modifier: each returns this same class with the
+  // widened input and output, so `.optional().min(1)` keeps its methods and its types.
+  public override optional(): BigIntSchema<TInput | undefined, TOutput | undefined> {
+    return super.optional() as unknown as BigIntSchema<TInput | undefined, TOutput | undefined>
+  }
+
+  public override nullable(): BigIntSchema<TInput | null, TOutput | null> {
+    return super.nullable() as unknown as BigIntSchema<TInput | null, TOutput | null>
+  }
+
+  public override nullish(): BigIntSchema<TInput | null | undefined, TOutput | null | undefined> {
+    return super.nullish() as unknown as BigIntSchema<TInput | null | undefined, TOutput | null | undefined>
+  }
+
+  public override default(value: TOutput | (() => TOutput)): BigIntSchema<TInput | undefined, TOutput> {
+    return super.default(value) as unknown as BigIntSchema<TInput | undefined, TOutput>
+  }
+
+  private _check(value: unknown, path: ReadonlyArray<string | number> = []): ValidateResult<bigint> {
     let bigVal = value
     if (this.descriptor.coerce && bigVal !== undefined && bigVal !== null) {
       try {

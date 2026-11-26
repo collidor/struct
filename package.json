@@ -49,10 +49,11 @@
   "license": "MIT",
   "scripts": {
     "build": "vite build && tsc -p tsconfig.build.json",
-    "test": "vitest run",
+    "test": "vitest run && pnpm run test:types",
     "docs:dev": "pnpm --filter @collidor/struct-docs run dev",
     "docs:build": "pnpm --filter @collidor/struct-docs run build",
-    "docs:preview": "pnpm --filter @collidor/struct-docs run preview"
+    "docs:preview": "pnpm --filter @collidor/struct-docs run preview",
+    "test:types": "tsc -p tsconfig.types.json"
   },
   "dependencies": {
     "zod": "^3.24.2"

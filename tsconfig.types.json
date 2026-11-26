@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "declaration": false,
+    "emitDeclarationOnly": false,
+    "declarationDir": null
+  },
+  "include": [
+    "src/**/*",
+    "__tests__/chainOrder.spec.ts"
+  ],
+  "exclude": [
+    "src/**/__tests__/**"
+  ]
+}
