@@ -102,6 +102,32 @@ const ProfileForm = f.struct({
   priceRange: f.field(s.number().min(0).max(1000), { widget: f.range() }),
 })`
 
+const reactiveFieldSnippet = `import { s } from '@collidor/struct'
+import { f } from '@collidor/struct/form'
+
+const OrderForm = f.struct({
+  plan: s.enum(['free', 'team', 'enterprise']),
+  country: s.string(),
+  qty: s.number().min(1),
+  price: s.number(),
+
+  // evaluated against the current values, scoped like f.when (a bare name is a sibling)
+  seats: f.field(s.number(), { disabledWhen: 'plan == "free"' }),
+  coupon: f.field(s.string().optional(), { hiddenWhen: 'plan == "free"', readonlyWhen: 'qty > 100' }),
+
+  // requiredWhen decides whether empty is acceptable (and exports as optional)
+  vat: f.field(s.string().min(3), { requiredWhen: 'plan == "enterprise"' }),
+
+  // choices that follow another field; a value from another country fails validation
+  city: f.field(s.string().optional(), {
+    widget: f.combobox(),
+    options: { by: 'country', map: { DE: ['Berlin', 'Munich'], FR: [{ value: 'PAR', label: 'Paris' }] } },
+  }),
+
+  // a computed value: the parsed output always holds it, whatever was sent
+  total: f.field(s.number().optional(), { derive: 'qty * price' }),
+})`
+
 const collectionViewSnippet = `import { s } from '@collidor/struct'
 import { f } from '@collidor/struct/form'
 
@@ -268,6 +294,36 @@ function onFieldChange(event: CustomEvent<{ fieldKey: string; fieldValue: unknow
       <code>f.textInput()</code> or <code>f.textarea()</code> as a widget for editable strings.
     </Callout>
 
+    <h3>Reactive field options</h3>
+    <p>
+      <code>f.field</code> also takes options that depend on the other values. They use the same expression language and scoping as
+      <code>f.when</code>: a bare name is a sibling, and <code>$root</code>, <code>$parent</code>, <code>$item</code> and
+      <code>$index</code> reach outward.
+    </p>
+    <CodeBlock title="reactive-fields.ts" language="typescript" :code="reactiveFieldSnippet" />
+
+    <div class="widget-table-wrapper">
+      <table class="widget-table">
+        <thead>
+          <tr>
+            <th>Option</th>
+            <th>What it does</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><code>disabledWhen</code>, <code>readonlyWhen</code>, <code>hiddenWhen</code></td><td>Presentation only. The field keeps its value and still obeys its schema.</td></tr>
+          <tr><td><code>requiredWhen</code></td><td>Decides requiredness, replacing the schema's: while true an empty value is an error, while false it is accepted. Exported as optional.</td></tr>
+          <tr><td><code>options</code></td><td>A list, a function, or <code>&#123; by, map, otherwise &#125;</code> that follows another field. A value outside the current choices is invalid.</td></tr>
+          <tr><td><code>derive</code></td><td>An expression or function. The parsed output always holds the computed value and the field is shown read-only.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <Callout type="info" title="Rows">
+      Inside a list, these are judged against the row. The shared row template has no values, so use a list field's
+      <code>resolveItem(root, rowPath)</code> (the renderer does) to get one real row's settings.
+    </Callout>
+
     <Callout type="warning" title="Renderer support">
       This page describes the form-builder API. Support for each widget in the <code>&lt;ui-struct-form&gt;</code> renderer and the
       Live Workbench is not guaranteed by this page; check the renderer's own release notes before relying on a specific widget there.
@@ -285,15 +341,15 @@ function onFieldChange(event: CustomEvent<{ fieldKey: string; fieldValue: unknow
     <div class="features-grid">
       <div class="feature-card">
         <h3><code>f.row(shape, options)</code></h3>
-        <p>Places multiple inputs side-by-side on the same horizontal row with customizable <code>gap</code> and child <code>spans</code>.</p>
+        <p>Places multiple inputs side-by-side on the same horizontal row with customizable <code>gap</code> and <code>align</code>.</p>
       </div>
       <div class="feature-card">
         <h3><code>f.grid(shape, options)</code></h3>
-        <p>Responsive CSS grid layout specifying <code>columns</code> (e.g. <code>2</code>, <code>repeat(3, 1fr)</code>) and <code>gap</code>.</p>
+        <p>Responsive CSS grid layout specifying <code>columns</code> (e.g. <code>2</code>, <code>repeat(3, 1fr)</code>), <code>gap</code>, <code>align</code>, and per-child <code>spans</code> keyed by child key (<code>&#123; notes: 2 &#125;</code>).</p>
       </div>
       <div class="feature-card">
         <h3><code>f.tabs(shape, options)</code></h3>
-        <p>Organizes fields into tabbed panels without nesting data keys.</p>
+        <p>Organizes fields into tabbed panels without nesting data keys. <code>defaultTab</code> picks the tab shown first.</p>
       </div>
       <div class="feature-card">
         <h3><code>f.section(title, shape)</code></h3>

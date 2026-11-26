@@ -42,7 +42,7 @@ The explicit presentation and interaction strategy (`table`, `list`, `cards`, `t
 _Avoid_: Array widget, repeater type
 
 **Reactive Derivation**:
-A dynamic property of a node (`disabledWhen`, `readonlyWhen`, `requiredWhen`, cascading `options`, derived value) evaluated against live form values (`$root`, `$item`, `$index`).
+A setting of a field that depends on the form's live values, given to `f.field` and evaluated with the same expression language and scoping as a Conditional Branch (`$root`, `$parent`, `$item`, `$index`): `disabledWhen`, `readonlyWhen`, `hiddenWhen` (presentation only), `requiredWhen` (replaces the schema's requiredness, and exports as optional), cascading `options` (`{ by, map }`, a list or a function; a value outside the current choices is invalid) and `derive` (a computed value that the parsed output always holds). The shared row template has no values, so a row's settings come from `resolveItem`.
 _Avoid_: Field hook, watcher, side effect
 
 **Wizard**:
