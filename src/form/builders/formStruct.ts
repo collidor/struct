@@ -75,6 +75,7 @@ export class FormStructSchema<
   public readonly shape: TShape
 
   constructor(shape: TShape = {} as TShape, descriptor: Partial<StructDescriptor> = {}) {
+    FormStructSchema.assertUniqueKeys(shape)
     const fieldsDesc: Record<string, TypeDescriptor> = {}
     FormStructSchema.extractDataDescriptors(shape, fieldsDesc)
 
@@ -89,31 +90,77 @@ export class FormStructSchema<
 
   /**
    * Helper to recursively extract data field descriptors, stripping UI-only nodes.
+   *
+   * A field inside `when` / `else` is only required while its condition holds, which a plain
+   * descriptor (and so JSON Schema, Zod and DDL) cannot say. It is exported as optional rather than
+   * as always required; validation of the form itself still enforces it when it applies.
    */
   public static extractDataDescriptors(
     shape: Record<string, any>,
     out: Record<string, TypeDescriptor>,
+    conditional = false,
   ): void {
     for (const [key, item] of Object.entries(shape)) {
       if (isUIOnlyNode(item)) {
         continue
       }
       if (isLayoutContainerNode(item)) {
-        FormStructSchema.extractDataDescriptors(item.shape, out)
+        FormStructSchema.extractDataDescriptors(item.shape, out, conditional)
         continue
       }
       if (isConditionalNode(item)) {
-        FormStructSchema.extractDataDescriptors(item.branch, out)
+        FormStructSchema.extractDataDescriptors(item.branch, out, true)
         if (item.elseBranch) {
-          FormStructSchema.extractDataDescriptors(item.elseBranch, out)
+          FormStructSchema.extractDataDescriptors(item.elseBranch, out, true)
         }
         continue
       }
       const schema = isFormField(item) ? item.schema : item
       if (schema instanceof BaseSchema) {
-        out[key] = schema.descriptor
+        out[key] = conditional ? { ...schema.descriptor, optional: true } : schema.descriptor
       }
     }
+  }
+
+  /**
+   * Finds a key that two parts of the form would both write. Layouts share their struct's keys,
+   * and so do conditional branches; the only legal repeat is one key in the `when` and the `else`
+   * of the same conditional, because exactly one of them applies.
+   */
+  public static assertUniqueKeys(
+    shape: Record<string, any>,
+    taken: Map<string, string> = new Map(),
+    where = '',
+  ): Map<string, string> {
+    let out = new Map(taken)
+    for (const [key, item] of Object.entries(shape)) {
+      if (isUIOnlyNode(item)) continue
+      if (isLayoutContainerNode(item)) {
+        out = FormStructSchema.assertUniqueKeys(item.shape, out, `${where}${key}/`)
+        continue
+      }
+      if (isConditionalNode(item)) {
+        const whenKeys = FormStructSchema.assertUniqueKeys(item.branch, out, `${where}${key}(when)/`)
+        const elseKeys = item.elseBranch
+          ? FormStructSchema.assertUniqueKeys(item.elseBranch, out, `${where}${key}(else)/`)
+          : out
+        out = new Map([...whenKeys, ...elseKeys])
+        continue
+      }
+      const schema = isFormField(item) ? item.schema : item
+      if (!(schema instanceof BaseSchema)) continue
+      const here = `${where}${key}`
+      const earlier = out.get(key)
+      if (earlier !== undefined) {
+        throw new Error(
+          `Duplicate field "${key}" in a form struct: "${earlier}" and "${here}" would both write the key "${key}". ` +
+            'Layouts and conditional branches share their struct\'s keys. Rename one, or put the two ' +
+            'variants in the `when` and `else` of one conditional.',
+        )
+      }
+      out.set(key, here)
+    }
+    return out
   }
 
   /**
@@ -245,6 +292,48 @@ export class FormStructSchema<
         }
       }
     }
+  }
+
+  /**
+   * Starting values: every field's default, plus the fields of each conditional branch that is
+   * active for them (a branch whose condition is false is left out, like an optional field).
+   * One condition can depend on a field another adds, so the choice is repeated until the set of
+   * fields stops changing.
+   */
+  public override createDefault(): InferFormOutput<TShape> {
+    const build = (against: Record<string, unknown>): Record<string, unknown> => {
+      const values: Record<string, unknown> = {}
+      const visit = (shape: Record<string, any>) => {
+        for (const [key, item] of Object.entries(shape)) {
+          if (isUIOnlyNode(item)) continue
+          if (isLayoutContainerNode(item)) {
+            visit(item.shape)
+          } else if (isConditionalNode(item)) {
+            const scope = new PathScope(against)
+            const context: FormContext = { values: against, rootValues: against, index: undefined, scope }
+            const branch = evaluateCondition(item.condition, against, context) ? item.branch : item.elseBranch
+            if (branch) visit(branch)
+          } else {
+            const schema = isFormField(item) ? item.schema : item
+            if (!(schema instanceof BaseSchema)) continue
+            const value = schema.createDefault()
+            if (value !== undefined || !schema.descriptor.optional) values[key] = value
+          }
+        }
+      }
+      visit(this.shape)
+      return values
+    }
+    const fieldsOf = (values: Record<string, unknown>) => Object.keys(values).sort().join('\0')
+
+    let current = build({})
+    for (let pass = 0; pass < 8; pass++) {
+      const next = build(current)
+      const settled = fieldsOf(next) === fieldsOf(current)
+      current = next
+      if (settled) break
+    }
+    return current as InferFormOutput<TShape>
   }
 
   /** Context for a condition on `valObj`: its place in the root, so `$root`, `$parent` and `$item` work. */

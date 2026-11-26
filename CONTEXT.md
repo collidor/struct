@@ -34,6 +34,7 @@ _Avoid_: Dummy field, decorative field, pseudo-field
 
 **Conditional Branch**:
 A rule (`when`) governing whether a field or layout container is active based on current form values, coupling UI visibility with validation bypass when inactive.
+Fields inside a branch are exported as optional (JSON Schema, Zod and DDL cannot say "required while this holds"); the form itself still requires them when the condition is true. `createDefault()` includes a branch only when its condition holds for the defaults. A key may appear in the `when` and `else` of one conditional (exactly one applies) but nowhere else in the same form struct: a key defined twice throws when the form is defined.
 _Avoid_: Show-if, visibility filter, toggle group
 
 **Collection View Mode**:
