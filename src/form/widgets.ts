@@ -29,15 +29,31 @@ import type {
 // Kinds
 // ---------------------------------------------------------------------------
 
-export type StringWidgetKind = 'text' | 'textarea'
+export type StringWidgetKind = 'text' | 'textarea' | 'password' | 'color' | 'file' | 'code'
+export type DateWidgetKind = 'date' | 'datetime'
+export type ChoiceWidgetKind = 'select' | 'radio'
+export type BooleanWidgetKind = 'checkbox' | 'switch'
 export type NumericWidgetKind = 'number' | 'slider' | 'range'
-export type CollectionWidgetKind = 'table' | 'tags' | 'list' | 'cards' | 'tabs' | 'combobox'
-export type FormWidgetKind = StringWidgetKind | NumericWidgetKind | CollectionWidgetKind
+export type CollectionWidgetKind = 'table' | 'tags' | 'list' | 'cards' | 'tabs' | 'combobox' | 'multiselect'
+export type FormWidgetKind =
+  | StringWidgetKind
+  | DateWidgetKind
+  | ChoiceWidgetKind
+  | BooleanWidgetKind
+  | NumericWidgetKind
+  | CollectionWidgetKind
 
 export const STRING_WIDGET_KINDS: readonly StringWidgetKind[] = Object.freeze([
   'text',
   'textarea',
+  'password',
+  'color',
+  'file',
+  'code',
 ])
+export const DATE_WIDGET_KINDS: readonly DateWidgetKind[] = Object.freeze(['date', 'datetime'])
+export const CHOICE_WIDGET_KINDS: readonly ChoiceWidgetKind[] = Object.freeze(['select', 'radio'])
+export const BOOLEAN_WIDGET_KINDS: readonly BooleanWidgetKind[] = Object.freeze(['checkbox', 'switch'])
 export const NUMERIC_WIDGET_KINDS: readonly NumericWidgetKind[] = Object.freeze([
   'number',
   'slider',
@@ -50,6 +66,7 @@ export const COLLECTION_WIDGET_KINDS: readonly CollectionWidgetKind[] = Object.f
   'cards',
   'tabs',
   'combobox',
+  'multiselect',
 ])
 
 // ---------------------------------------------------------------------------
@@ -78,6 +95,30 @@ export interface NumberInputWidgetProps {
 }
 
 export type WidgetOrientation = 'horizontal' | 'vertical'
+
+export interface PlaceholderWidgetProps {
+  readonly placeholder?: string
+}
+export interface FileWidgetProps {
+  /** Accepted file types, as on `<input type="file" accept>`: `.png,image/*`. */
+  readonly accept?: string
+}
+export interface CodeWidgetProps {
+  readonly rows?: number
+  /** A hint for syntax highlighting, e.g. `json`. */
+  readonly language?: string
+}
+export interface ChoiceWidgetProps {
+  readonly placeholder?: string
+}
+export interface RadioWidgetProps {
+  readonly orientation?: WidgetOrientation
+}
+export interface MultiselectWidgetProps {
+  readonly placeholder?: string
+  readonly searchable?: boolean
+}
+export type EmptyWidgetProps = Record<never, never>
 
 export interface SliderWidgetProps {
   /** Show the current value next to the control. */
@@ -206,6 +247,224 @@ export class TextareaWidget<TValue extends string = string> extends WidgetBase<
 
   cols(count: number): TextareaWidget<TValue> {
     return this.with({ cols: count })
+  }
+}
+
+export class PasswordWidget<TValue extends string = string> extends WidgetBase<
+  'password',
+  PlaceholderWidgetProps,
+  TValue
+> {
+  readonly kind = 'password' as const
+
+  constructor(props: PlaceholderWidgetProps = {}) {
+    super(props)
+  }
+
+  protected create(props: PlaceholderWidgetProps): this {
+    return new PasswordWidget<TValue>(props) as this
+  }
+
+  placeholder(text: string): PasswordWidget<TValue> {
+    return this.with({ placeholder: text })
+  }
+}
+
+export class ColorWidget<TValue extends string = string> extends WidgetBase<
+  'color',
+  EmptyWidgetProps,
+  TValue
+> {
+  readonly kind = 'color' as const
+
+  constructor(props: EmptyWidgetProps = {}) {
+    super(props)
+  }
+
+  protected create(props: EmptyWidgetProps): this {
+    return new ColorWidget<TValue>(props) as this
+  }
+
+}
+
+export class FileWidget<TValue extends string = string> extends WidgetBase<
+  'file',
+  FileWidgetProps,
+  TValue
+> {
+  readonly kind = 'file' as const
+
+  constructor(props: FileWidgetProps = {}) {
+    super(props)
+  }
+
+  protected create(props: FileWidgetProps): this {
+    return new FileWidget<TValue>(props) as this
+  }
+
+  accept(types: string): FileWidget<TValue> {
+    return this.with({ accept: types })
+  }
+}
+
+export class CodeWidget<TValue extends string = string> extends WidgetBase<
+  'code',
+  CodeWidgetProps,
+  TValue
+> {
+  readonly kind = 'code' as const
+
+  constructor(props: CodeWidgetProps = {}) {
+    super(props)
+    if (props.rows !== undefined) assertPositiveInteger('rows', props.rows)
+  }
+
+  protected create(props: CodeWidgetProps): this {
+    return new CodeWidget<TValue>(props) as this
+  }
+
+  rows(count: number): CodeWidget<TValue> {
+    return this.with({ rows: count })
+  }
+  language(name: string): CodeWidget<TValue> {
+    return this.with({ language: name })
+  }
+}
+
+export class DateWidget<TValue extends string | Date = string | Date> extends WidgetBase<
+  'date',
+  PlaceholderWidgetProps,
+  TValue
+> {
+  readonly kind = 'date' as const
+
+  constructor(props: PlaceholderWidgetProps = {}) {
+    super(props)
+  }
+
+  protected create(props: PlaceholderWidgetProps): this {
+    return new DateWidget<TValue>(props) as this
+  }
+
+  placeholder(text: string): DateWidget<TValue> {
+    return this.with({ placeholder: text })
+  }
+}
+
+export class DatetimeWidget<TValue extends string | Date = string | Date> extends WidgetBase<
+  'datetime',
+  PlaceholderWidgetProps,
+  TValue
+> {
+  readonly kind = 'datetime' as const
+
+  constructor(props: PlaceholderWidgetProps = {}) {
+    super(props)
+  }
+
+  protected create(props: PlaceholderWidgetProps): this {
+    return new DatetimeWidget<TValue>(props) as this
+  }
+
+  placeholder(text: string): DatetimeWidget<TValue> {
+    return this.with({ placeholder: text })
+  }
+}
+
+export class SelectWidget<TValue extends string | number = string | number> extends WidgetBase<
+  'select',
+  ChoiceWidgetProps,
+  TValue
+> {
+  readonly kind = 'select' as const
+
+  constructor(props: ChoiceWidgetProps = {}) {
+    super(props)
+  }
+
+  protected create(props: ChoiceWidgetProps): this {
+    return new SelectWidget<TValue>(props) as this
+  }
+
+  placeholder(text: string): SelectWidget<TValue> {
+    return this.with({ placeholder: text })
+  }
+}
+
+export class RadioWidget<TValue extends string | number = string | number> extends WidgetBase<
+  'radio',
+  RadioWidgetProps,
+  TValue
+> {
+  readonly kind = 'radio' as const
+
+  constructor(props: RadioWidgetProps = {}) {
+    super(props)
+  }
+
+  protected create(props: RadioWidgetProps): this {
+    return new RadioWidget<TValue>(props) as this
+  }
+
+  orientation(value: WidgetOrientation): RadioWidget<TValue> {
+    return this.with({ orientation: value })
+  }
+}
+
+export class CheckboxWidget<TValue extends boolean = boolean> extends WidgetBase<
+  'checkbox',
+  EmptyWidgetProps,
+  TValue
+> {
+  readonly kind = 'checkbox' as const
+
+  constructor(props: EmptyWidgetProps = {}) {
+    super(props)
+  }
+
+  protected create(props: EmptyWidgetProps): this {
+    return new CheckboxWidget<TValue>(props) as this
+  }
+
+}
+
+export class SwitchWidget<TValue extends boolean = boolean> extends WidgetBase<
+  'switch',
+  EmptyWidgetProps,
+  TValue
+> {
+  readonly kind = 'switch' as const
+
+  constructor(props: EmptyWidgetProps = {}) {
+    super(props)
+  }
+
+  protected create(props: EmptyWidgetProps): this {
+    return new SwitchWidget<TValue>(props) as this
+  }
+
+}
+
+export class MultiselectWidget<TValue extends readonly unknown[] = readonly unknown[]> extends WidgetBase<
+  'multiselect',
+  MultiselectWidgetProps,
+  TValue
+> {
+  readonly kind = 'multiselect' as const
+
+  constructor(props: MultiselectWidgetProps = {}) {
+    super(props)
+  }
+
+  protected create(props: MultiselectWidgetProps): this {
+    return new MultiselectWidget<TValue>(props) as this
+  }
+
+  placeholder(text: string): MultiselectWidget<TValue> {
+    return this.with({ placeholder: text })
+  }
+  searchable(enabled = true): MultiselectWidget<TValue> {
+    return this.with({ searchable: enabled })
   }
 }
 
@@ -494,8 +753,23 @@ export class ComboboxWidget<TValue extends ComboboxValue = ComboboxValue> extend
 // Unions & compatibility types
 // ---------------------------------------------------------------------------
 
+/** Date and date-time inputs: for a `Date` field, or a string holding a date. */
+export type DateFormWidget = DateWidget<string | Date> | DatetimeWidget<string | Date>
+
+/** Choosing one of the available options (from an enum, or `f.field`'s `options`). */
+export type ChoiceFormWidget = SelectWidget<string | number> | RadioWidget<string | number>
+
+/** Widgets that edit a boolean. */
+export type BooleanFormWidget = CheckboxWidget<boolean> | SwitchWidget<boolean>
+
 /** Widgets that edit a string value. */
-export type StringFormWidget = TextInputWidget<string> | TextareaWidget<string>
+export type StringFormWidget =
+  | TextInputWidget<string>
+  | TextareaWidget<string>
+  | PasswordWidget<string>
+  | ColorWidget<string>
+  | FileWidget<string>
+  | CodeWidget<string>
 
 /** Widgets that edit a numeric value. */
 export type NumericFormWidget = NumberInputWidget<number> | SliderWidget<number> | RangeWidget<number>
@@ -510,10 +784,17 @@ export type CollectionFormWidget =
   | ListWidget<readonly unknown[]>
   | CardsWidget<readonly unknown[]>
   | TabsWidget<readonly unknown[]>
+  | MultiselectWidget<readonly unknown[]>
   | ComboboxFormWidget
 
 /** Discriminated (on `kind`) union of every standalone form widget. */
-export type FormWidget = StringFormWidget | NumericFormWidget | CollectionFormWidget
+export type FormWidget =
+  | StringFormWidget
+  | DateFormWidget
+  | ChoiceFormWidget
+  | BooleanFormWidget
+  | NumericFormWidget
+  | CollectionFormWidget
 
 /** Extracts the widget with a given `kind`. */
 export type FormWidgetOfKind<K extends FormWidgetKind> = Extract<FormWidget, { readonly kind: K }>
@@ -521,13 +802,17 @@ export type FormWidgetOfKind<K extends FormWidgetKind> = Extract<FormWidget, { r
 /** Union of widgets that can edit a field of value type `TValue` (nullish ignored). */
 export type WidgetForValue<TValue> = [NonNullable<TValue>] extends [never]
   ? never
-  : [NonNullable<TValue>] extends [string]
-    ? StringFormWidget | ComboboxFormWidget
-    : [NonNullable<TValue>] extends [number]
-      ? NumericFormWidget
-      : [NonNullable<TValue>] extends [readonly unknown[]]
-        ? CollectionFormWidget
-        : never
+  : [NonNullable<TValue>] extends [Date]
+    ? DateFormWidget
+    : [NonNullable<TValue>] extends [boolean]
+      ? BooleanFormWidget
+      : [NonNullable<TValue>] extends [string]
+        ? StringFormWidget | DateFormWidget | ChoiceFormWidget | ComboboxFormWidget
+        : [NonNullable<TValue>] extends [number]
+          ? NumericFormWidget | ChoiceFormWidget
+          : [NonNullable<TValue>] extends [readonly unknown[]]
+            ? CollectionFormWidget
+            : never
 
 /**
  * Resolves to `W` when widget `W` can edit a field of value type `TValue`,
@@ -615,6 +900,55 @@ export function range<TValue extends number = number>(
   return new RangeWidget<TValue>(props)
 }
 
+
+export function passwordInput<TValue extends string = string>(props: PlaceholderWidgetProps = {}): PasswordWidget<TValue> {
+  return new PasswordWidget<TValue>(props)
+}
+
+export function colorInput<TValue extends string = string>(): ColorWidget<TValue> {
+  return new ColorWidget<TValue>()
+}
+
+export function fileInput<TValue extends string = string>(props: FileWidgetProps = {}): FileWidget<TValue> {
+  return new FileWidget<TValue>(props)
+}
+
+export function codeInput<TValue extends string = string>(props: CodeWidgetProps = {}): CodeWidget<TValue> {
+  return new CodeWidget<TValue>(props)
+}
+
+export function dateInput<TValue extends string | Date = string | Date>(props: PlaceholderWidgetProps = {}): DateWidget<TValue> {
+  return new DateWidget<TValue>(props)
+}
+
+export function datetimeInput<TValue extends string | Date = string | Date>(
+  props: PlaceholderWidgetProps = {},
+): DatetimeWidget<TValue> {
+  return new DatetimeWidget<TValue>(props)
+}
+
+export function select<TValue extends string | number = string | number>(props: ChoiceWidgetProps = {}): SelectWidget<TValue> {
+  return new SelectWidget<TValue>(props)
+}
+
+export function radio<TValue extends string | number = string | number>(props: RadioWidgetProps = {}): RadioWidget<TValue> {
+  return new RadioWidget<TValue>(props)
+}
+
+export function checkbox<TValue extends boolean = boolean>(): CheckboxWidget<TValue> {
+  return new CheckboxWidget<TValue>()
+}
+
+export function switchInput<TValue extends boolean = boolean>(): SwitchWidget<TValue> {
+  return new SwitchWidget<TValue>()
+}
+
+export function multiselect<TValue extends readonly unknown[] = readonly unknown[]>(
+  props: MultiselectWidgetProps = {},
+): MultiselectWidget<TValue> {
+  return new MultiselectWidget<TValue>(props)
+}
+
 /** Namespace-style bag of all widget factories (`widgets.textInput()` ...). */
 export const widgets = Object.freeze({
   textInput,
@@ -628,6 +962,17 @@ export const widgets = Object.freeze({
   cards,
   tabsWidget,
   combobox,
+  passwordInput,
+  colorInput,
+  fileInput,
+  codeInput,
+  dateInput,
+  datetimeInput,
+  select,
+  radio,
+  checkbox,
+  switchInput,
+  multiselect,
 })
 
 // ---------------------------------------------------------------------------
@@ -646,6 +991,17 @@ const WIDGET_CLASSES = [
   CardsWidget,
   TabsWidget,
   ComboboxWidget,
+  PasswordWidget,
+  ColorWidget,
+  FileWidget,
+  CodeWidget,
+  DateWidget,
+  DatetimeWidget,
+  SelectWidget,
+  RadioWidget,
+  CheckboxWidget,
+  SwitchWidget,
+  MultiselectWidget,
 ] as const
 
 export function isFormWidget(value: unknown): value is FormWidget {

@@ -71,18 +71,28 @@ describe('form widgets: kind and props', () => {
     expect(widgets.slider({ showValue: true }).props).toEqual({ showValue: true })
     expect(Object.keys(widgets).sort()).toEqual([
       'cards',
+      'checkbox',
+      'codeInput',
+      'colorInput',
       'combobox',
+      'dateInput',
+      'datetimeInput',
+      'fileInput',
       'list',
+      'multiselect',
       'numberInput',
+      'passwordInput',
+      'radio',
       'range',
+      'select',
       'slider',
+      'switchInput',
       'table',
       'tabsWidget',
       'tags',
       'textInput',
       'textarea',
-    ])
-  })
+    ])  })
 
   it('later calls override earlier ones and undefined props are omitted', () => {
     expect(textarea().rows(2).rows(6).props).toEqual({ rows: 6 })

@@ -9,7 +9,8 @@
   },
   "include": [
     "src/**/*",
-    "__tests__/chainOrder.spec.ts"
+    "__tests__/chainOrder.spec.ts",
+    "__tests__/widgetFamilies.spec.ts"
   ],
   "exclude": [
     "src/**/__tests__/**"

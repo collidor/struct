@@ -93,6 +93,10 @@ export function createFieldNode({
   const derived = options?.derive !== undefined && context ? evaluateDerive(options.derive, context.values, context) : undefined
   const choices = options?.options !== undefined && context ? resolveOptions(options.options, context.values, context) : undefined
   const requiredNow = holds(options?.requiredWhen)
+  // A descriptor that arrives as plain JSON carries its display settings in `metadata`; a form
+  // struct takes them from `f.field` instead.
+  const hint = <T>(key: string, kind: 'boolean' | 'number' | 'string'): T | undefined =>
+    honorDescriptorHints && typeof meta[key] === kind ? (meta[key] as T) : undefined
 
   return {
     kind: 'field',
@@ -102,17 +106,20 @@ export function createFieldNode({
     label: options?.label ?? meta.label ?? descriptor.title ?? key,
     description: options?.description ?? meta.description ?? descriptor.description,
     placeholder: options?.placeholder ?? (typeof meta.placeholder === 'string' ? meta.placeholder : undefined),
-    helpText: options?.helpText,
+    helpText: options?.helpText ?? hint<string>('helpText', 'string'),
     widget,
     widgetProps: props,
     options: choices ?? (props.options as FormFieldNode['options']),
     required: requiredNow ?? (options?.derive === undefined && !descriptor.optional && descriptor.default === undefined),
-    disabled: (options?.disabled ?? false) || (holds(options?.disabledWhen) ?? false),
+    disabled: (options?.disabled ?? hint<boolean>('disabled', 'boolean') ?? false) || (holds(options?.disabledWhen) ?? false),
     // a computed value is shown, not edited
-    readonly: (options?.readonly ?? false) || (holds(options?.readonlyWhen) ?? false) || options?.derive !== undefined,
-    hidden: (options?.hidden ?? false) || (holds(options?.hiddenWhen) ?? false),
+    readonly:
+      (options?.readonly ?? hint<boolean>('readonly', 'boolean') ?? false) ||
+      (holds(options?.readonlyWhen) ?? false) ||
+      options?.derive !== undefined,
+    hidden: (options?.hidden ?? hint<boolean>('hidden', 'boolean') ?? false) || (holds(options?.hiddenWhen) ?? false),
     ...(options?.derive !== undefined ? { derivedValue: derived } : {}),
-    colSpan: options?.colSpan,
+    colSpan: options?.colSpan ?? hint<number>('colSpan', 'number'),
     defaultValue: descriptor.default,
     type: descriptor.kind,
     descriptor,

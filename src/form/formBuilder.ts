@@ -2,7 +2,30 @@
 import type { StructDescriptor } from '../types/ast'
 import { FormStructSchema } from './builders/formStruct'
 import { field } from './field'
-import { textInput, textarea, numberInput, slider, range, table, tags, list, cards, tabsWidget, combobox } from './widgets'
+import {
+  textInput,
+  textarea,
+  numberInput,
+  slider,
+  range,
+  table,
+  tags,
+  list,
+  cards,
+  tabsWidget,
+  combobox,
+  passwordInput,
+  colorInput,
+  fileInput,
+  codeInput,
+  dateInput,
+  datetimeInput,
+  select,
+  radio,
+  checkbox,
+  switchInput,
+  multiselect,
+} from './widgets'
 import {
   row,
   grid,
@@ -70,6 +93,17 @@ export const f = {
   cards,
   tabsWidget,
   combobox,
+  passwordInput,
+  colorInput,
+  fileInput,
+  codeInput,
+  dateInput,
+  datetimeInput,
+  select,
+  radio,
+  checkbox,
+  switchInput,
+  multiselect,
 
   // 3. Layout Containers (transparent in data shape, grouped in UI)
   row,

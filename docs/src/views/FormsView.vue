@@ -280,6 +280,26 @@ function onFieldChange(event: CustomEvent<{ fieldKey: string; fieldValue: unknow
             <td><code>s.number()</code></td>
           </tr>
           <tr>
+            <td><code>f.passwordInput()</code>, <code>f.colorInput()</code>, <code>f.fileInput().accept(types)</code>, <code>f.codeInput().rows(n)</code></td>
+            <td><code>s.string()</code></td>
+          </tr>
+          <tr>
+            <td><code>f.dateInput()</code>, <code>f.datetimeInput()</code></td>
+            <td><code>s.date()</code>, or a string holding a date</td>
+          </tr>
+          <tr>
+            <td><code>f.checkbox()</code>, <code>f.switchInput()</code></td>
+            <td><code>s.boolean()</code></td>
+          </tr>
+          <tr>
+            <td><code>f.select()</code>, <code>f.radio()</code></td>
+            <td><code>s.enum([...])</code>, or any string or number with <code>f.field</code>'s <code>options</code></td>
+          </tr>
+          <tr>
+            <td><code>f.multiselect()</code></td>
+            <td><code>s.array(...)</code> with <code>options</code></td>
+          </tr>
+          <tr>
             <td><code>f.table(config)</code>, <code>f.tags(config)</code>, <code>f.list(config)</code>, <code>f.cards(config)</code>, <code>f.tabsWidget(config)</code>, <code>f.combobox(config)</code></td>
             <td><code>s.array(...)</code> (see <a href="#collection-views">Collection Widgets</a>)</td>
           </tr>
