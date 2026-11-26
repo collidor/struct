@@ -303,3 +303,27 @@ describe('row drafts', () => {
     expect(onForm).not.toHaveBeenCalled()
   })
 })
+
+describe('validation work', () => {
+  it('parses the form once for a jump over several steps, not once per step', () => {
+    const form = f.struct({
+      wizard: f.steps(
+        Object.fromEntries(
+          Array.from({ length: 5 }, (_, i) => [`s${i}`, f.section(`Step ${i}`, { [`f${i}`]: s.string().min(1) })]),
+        ),
+      ),
+    })
+    const values = Object.fromEntries(Array.from({ length: 5 }, (_, i) => [`f${i}`, 'x']))
+    let parses = 0
+    const counted = {
+      toFormTree: (v: any, c?: any) => form.toFormTree(v, c),
+      safeParse: (v: unknown) => (parses++, form.safeParse(v)),
+    }
+    const controller = f.createController(counted as any, { initialValues: values })
+    const wizard = (controller.getTree().nodes[0] as any).id
+
+    expect(controller.setStep(4, wizard)).toBe(true)
+    expect(controller.getStep(wizard)).toBe(4)
+    expect(parses).toBe(1) // four steps were checked on the way
+  })
+})

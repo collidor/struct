@@ -267,6 +267,14 @@ export abstract class FormSession<T extends Record<string, unknown> = Record<str
    * only their errors are replaced. Returns whether the step is fine to leave.
    */
   public validateStep(index: number, containerId?: string): boolean {
+    return this.checkStep(index, containerId, () => this.issues())
+  }
+
+  /**
+   * `issues` is a thunk so a caller that checks several steps in a row (a jump forward) can hand
+   * every check the same result, parsing the whole form once instead of once per step.
+   */
+  private checkStep(index: number, containerId: string | undefined, issues: () => FormIssue[]): boolean {
     const id = containerId ?? this.firstStepsId()
     const container = id === undefined ? undefined : this.findContainer(id, STEP_KINDS)
     if (!container) return this.validate()
@@ -280,7 +288,7 @@ export abstract class FormSession<T extends Record<string, unknown> = Record<str
       if (inStep(existing)) delete this.errors[existing]
     }
     const failing: Record<string, string> = {}
-    for (const issue of this.issues()) {
+    for (const issue of issues()) {
       const path = formatPath(issuePath(issue))
       if (path && inStep(path)) {
         this.addError(issue)
@@ -313,8 +321,11 @@ export abstract class FormSession<T extends Record<string, unknown> = Record<str
 
     const current = this.activeSteps[id] ?? 0
     if (target > current && container.options?.validateOnNext !== false) {
+      // the values do not change while we check, so one parse serves every step on the way
+      let parsed: FormIssue[] | undefined
+      const issues = () => (parsed ??= this.issues())
       for (let i = current; i < target; i++) {
-        if (!this.validateStep(i, id)) {
+        if (!this.checkStep(i, id, issues)) {
           this.activeSteps = { ...this.activeSteps, [id]: i }
           this.notify()
           return false
