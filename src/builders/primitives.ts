@@ -229,7 +229,6 @@ export class StringSchema<TInput = string> extends BaseSchema<TInput, string> {
   public datetime(message?: string): this {
     const clone = this._clone()
     clone.descriptor.format = 'datetime'
-    clone.descriptor.metadata = { ...clone.descriptor.metadata, widget: 'datetime' }
     if (message) {
       clone.descriptor.messages = { ...clone.descriptor.messages, datetime: message }
     }
@@ -245,11 +244,6 @@ export class StringSchema<TInput = string> extends BaseSchema<TInput, string> {
   public password(message?: string): this {
     const clone = this._clone()
     clone.descriptor.format = 'password'
-    clone.descriptor.metadata = {
-      ...clone.descriptor.metadata,
-      widget: 'password',
-      widgetProps: { ...clone.descriptor.metadata?.widgetProps, type: 'password' },
-    }
     if (message) {
       clone.descriptor.messages = { ...clone.descriptor.messages, password: message }
     }
@@ -259,7 +253,6 @@ export class StringSchema<TInput = string> extends BaseSchema<TInput, string> {
   public file(message?: string): this {
     const clone = this._clone()
     clone.descriptor.format = 'file'
-    clone.descriptor.metadata = { ...clone.descriptor.metadata, widget: 'file' }
     if (message) {
       clone.descriptor.messages = { ...clone.descriptor.messages, file: message }
     }

@@ -58,13 +58,15 @@ export function evaluateCondition(
 
   if (typeof condition === 'string') {
     try {
-      const evalCtx: Record<string, unknown> = {
-        ...values,
-        $values: values,
-        $root: context?.rootValues ?? values,
-        $item: context?.parentValues,
-        $index: context?.index,
-      }
+      const evalCtx: Record<string, unknown> = context?.scope
+        ? context.scope.context()
+        : {
+            ...values,
+            $values: values,
+            $root: context?.rootValues ?? values,
+            $item: context?.parentValues,
+            $index: context?.index,
+          }
       const res = evaluateExpression(condition, evalCtx)
       return Boolean(res)
     } catch {

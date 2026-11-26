@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { s } from '../src'
 import { f } from '../src/form/index'
 import type { Infer } from '../src/types/inference'
 
@@ -6,10 +7,10 @@ describe('@collidor/struct/form Unified Form Builder', () => {
   it('unifies spatial layouts: puts two inputs on the same line with f.row and flattens data shape', () => {
     const UserProfileForm = f.struct({
       nameRow: f.row({
-        firstName: f.string().describe('Given name'),
-        lastName: f.string().describe('Family name'),
+        firstName: s.string().describe('Given name'),
+        lastName: s.string().describe('Family name'),
       }, { gap: '1rem' }),
-      email: f.string().describe('Email address'),
+      email: s.string().describe('Email address'),
     })
 
     // TypeScript inferred data shape should be completely flat:
@@ -58,7 +59,7 @@ describe('@collidor/struct/form Unified Form Builder', () => {
         tone: 'info',
       }),
       header: f.heading('Customer Information', 2),
-      email: f.string(),
+      email: s.string(),
       divider1: f.divider(),
       spacer1: f.spacer('2rem'),
       computedTax: f.computedDisplay('subtotal * 0.2', { label: 'Estimated VAT (20%)' }),
@@ -101,10 +102,10 @@ describe('@collidor/struct/form Unified Form Builder', () => {
 
   it('supports conditional rendering and coupled validation with f.when (expression and predicate)', () => {
     const RegistrationForm = f.struct({
-      accountType: f.enum(['personal', 'business']),
+      accountType: s.enum(['personal', 'business']),
       businessFields: f.when('accountType == "business"', {
-        companyName: f.string(),
-        vatNumber: f.string(),
+        companyName: s.string(),
+        vatNumber: s.string(),
       }),
     })
 
@@ -151,9 +152,9 @@ describe('@collidor/struct/form Unified Form Builder', () => {
 
   it('supports predicate functions in f.when', () => {
     const SurveyForm = f.struct({
-      score: f.number(),
+      score: s.number(),
       feedback: f.when((vals) => Number(vals.score) < 5, {
-        reason: f.string(),
+        reason: s.string(),
       }),
     })
 
@@ -169,17 +170,17 @@ describe('@collidor/struct/form Unified Form Builder', () => {
 
   it('supports numeric comparison and string contains/equality to show or hide fields', () => {
     const DynamicForm = f.struct({
-      quantity: f.number().default(1),
-      notes: f.string().default(''),
+      quantity: s.number().default(1),
+      notes: s.string().default(''),
 
       // Show extraShippingDetails if quantity > 5
       bulkOptions: f.when('quantity > 5', {
-        palletCount: f.number().min(1),
+        palletCount: s.number().min(1),
       }),
 
       // Hide promotionalOffer if notes equals "subtext" or contains "subtext"
       promoBanner: f.unless('notes == "subtext" || contains(notes, "subtext")', {
-        discountCode: f.string(),
+        discountCode: s.string(),
       }),
     })
 
@@ -207,12 +208,12 @@ describe('@collidor/struct/form Unified Form Builder', () => {
   it('supports 100% pure JSON serializable rule objects without any JS functions', () => {
     // Both condition and schema descriptor are pure JSON serializable
     const PureJsonRuleForm = f.struct({
-      numericField: f.number(),
-      textField: f.string(),
+      numericField: s.number(),
+      textField: s.string(),
 
       // Numeric > 5 as structured JSON rule
       numericBranch: f.when({ field: 'numericField', op: '>', value: 5 }, {
-        highValueBonus: f.string(),
+        highValueBonus: s.string(),
       }),
 
       // Hide if textField == 'subtext' OR textField contains 'subtext' as structured JSON rule
@@ -224,7 +225,7 @@ describe('@collidor/struct/form Unified Form Builder', () => {
           ],
         },
         {
-          regularOffer: f.string(),
+          regularOffer: s.string(),
         },
       ),
     })
@@ -244,27 +245,27 @@ describe('@collidor/struct/form Unified Form Builder', () => {
 
   it('supports list presence, contains, and not_contains in both string expressions and structured rules', () => {
     const TaggedForm = f.struct({
-      roles: f.array(f.string()).default([]),
-      tags: f.array(f.string()).default([]),
+      roles: s.array(s.string()).default([]),
+      tags: s.array(s.string()).default([]),
 
       // Expression string: show securityControls if roles contains "admin"
       securityBranch: f.when('contains(roles, "admin")', {
-        adminToken: f.string(),
+        adminToken: s.string(),
       }),
 
       // Expression string: hide stagingBanner if tags contains "prod"
       stagingBranch: f.when('not_contains(tags, "prod")', {
-        stagingWatermark: f.string(),
+        stagingWatermark: s.string(),
       }),
 
       // Structured rule: show audit if roles contains "auditor"
       auditorBranch: f.when({ field: 'roles', op: 'contains', value: 'auditor' }, {
-        auditLogRetention: f.number(),
+        auditLogRetention: s.number(),
       }),
 
       // Structured rule: hide sandbox if tags not_contains "sandbox" (or contains)
       sandboxBranch: f.when({ field: 'tags', op: 'not_contains', value: 'legacy' }, {
-        modernPipeline: f.boolean(),
+        modernPipeline: s.boolean(),
       }),
     })
 
@@ -294,17 +295,17 @@ describe('@collidor/struct/form Unified Form Builder', () => {
     expect(tree2.fieldsByKey.modernPipeline).toBeDefined()
   })
 
-  it('unifies collection view modes: asTable, asList, asCards, asTabs, asTags', () => {
+  it('unifies collection widgets: f.table and f.tags via f.field', () => {
     const ItemSchema = f.struct({
-      id: f.string(),
-      name: f.string(),
-      quantity: f.number(),
-      price: f.number(),
+      id: s.string(),
+      name: s.string(),
+      quantity: s.number(),
+      price: s.number(),
     })
 
     const OrderSchema = f.struct({
-      orderId: f.string(),
-      itemsTable: f.array(ItemSchema).asTable({
+      orderId: s.string(),
+      itemsTable: f.field(s.array(ItemSchema), { widget: f.table({
         sortable: true,
         columns: [
           { key: 'name', label: 'Item Name', width: '40%' },
@@ -313,12 +314,16 @@ describe('@collidor/struct/form Unified Form Builder', () => {
           { key: 'total', label: 'Total', computed: 'quantity * price' },
         ],
         aggregations: [{ column: 'price', op: 'sum', label: 'Total Order' }],
-      }),
-      tagsList: f.array(f.string()).asTags({ maxTags: 5 }),
+      }) }),
+      tagsList: f.field(s.array(s.string()), { widget: f.tags({ maxTags: 5 }) }),
     })
 
-    expect(OrderSchema.shape.itemsTable.collectionView?.mode).toBe('table')
-    expect(OrderSchema.shape.tagsList.collectionView?.mode).toBe('tags')
+    expect(OrderSchema.shape.itemsTable.options.widget?.kind).toBe('table')
+    expect(OrderSchema.shape.tagsList.options.widget?.kind).toBe('tags')
+
+    const tree = OrderSchema.toFormTree({})
+    expect(tree.fieldsByKey.itemsTable.widget).toBe('table')
+    expect(tree.fieldsByKey.tagsList.widget).toBe('tags')
 
     const parsed = OrderSchema.parse({
       orderId: 'ORD-001',
@@ -334,15 +339,15 @@ describe('@collidor/struct/form Unified Form Builder', () => {
     const ComplexForm = f.struct({
       settingsTabs: f.tabs({
         general: f.grid({
-          appName: f.string(),
+          appName: s.string(),
           rowDetails: f.row({
-            host: f.string(),
-            port: f.number(),
+            host: s.string(),
+            port: s.number(),
           }),
         }, { columns: 2 }),
         security: f.section('Security Keys', {
-          apiKey: f.string(),
-          secretKey: f.string(),
+          apiKey: s.string(),
+          secretKey: s.string(),
         }),
       }),
     })
@@ -378,10 +383,10 @@ describe('@collidor/struct/form Unified Form Builder', () => {
     const WizardForm = f.struct({
       wizardSteps: f.steps({
         step1: f.section('Step 1: Account', {
-          username: f.string().nonempty('Username is required'),
+          username: s.string().nonempty('Username is required'),
         }),
         step2: f.section('Step 2: Profile', {
-          bio: f.string(),
+          bio: s.string(),
         }),
       }),
     })
@@ -416,12 +421,15 @@ describe('@collidor/struct/form Unified Form Builder', () => {
 
   it('provides array collection helpers on HeadlessFormController', () => {
     const TeamForm = f.struct({
-      members: f.array(
-        f.struct({
-          name: f.string(),
-          role: f.string(),
-        }),
-      ).asList(),
+      members: f.field(
+        s.array(
+          f.struct({
+            name: s.string(),
+            role: s.string(),
+          }),
+        ),
+        { widget: f.list() },
+      ),
     })
 
     const controller = f.createController(TeamForm, {
@@ -450,10 +458,10 @@ describe('@collidor/struct/form Unified Form Builder', () => {
 
   it('satisfies Standard Schema V1 spec', () => {
     const Form = f.struct({
-      title: f.string(),
+      title: s.string(),
       row: f.row({
-        a: f.number(),
-        b: f.number(),
+        a: s.number(),
+        b: s.number(),
       }),
     })
 

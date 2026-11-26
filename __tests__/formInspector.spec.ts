@@ -1,14 +1,29 @@
 import { describe, it, expect } from 'vitest'
-import { s, getFormFields, inferWidget } from '../src'
+import { fieldsOf } from './support/fields'
+import { s, inferWidget } from '../src'
+import { f } from '../src/form'
 
 describe('Form Inspector & UI Widget Inference', () => {
   it('infers widgets correctly based on type and constraints', () => {
     expect(inferWidget(s.string().descriptor).widget).toBe('text')
     expect(inferWidget(s.string().format('color').descriptor).widget).toBe('color')
-    expect(inferWidget(s.string().max(200).descriptor).widget).toBe('textarea')
+    // Long strings no longer imply a textarea; it must be requested explicitly.
+    expect(inferWidget(s.string().max(200).descriptor).widget).toBe('text')
+    expect(
+      f
+        .struct({ bio: f.field(s.string().max(200), { widget: f.textarea().rows(4) }) })
+        .toFormTree({}).fieldsByKey.bio?.widget,
+    ).toBe('textarea')
     expect(inferWidget(s.number().min(0).max(100).descriptor).widget).toBe('number')
-    expect(inferWidget(s.number().min(0).max(100).asRange().descriptor).widget).toBe('range')
-    expect(inferWidget(s.number().min(0).max(100).asSlider().descriptor).widget).toBe('slider')
+    const levels = f
+      .struct({
+        range: f.field(s.number().min(0).max(100), { widget: f.range() }),
+        slider: f.field(s.number().min(0).max(100), { widget: f.slider() }),
+      })
+      .toFormTree({}).fieldsByKey
+    expect(levels.range?.widget).toBe('range')
+    expect(levels.slider?.widget).toBe('slider')
+    expect(levels.slider?.widgetProps).toMatchObject({ min: 0, max: 100 })
     expect(
       inferWidget(s.number().integer().min(18).max(120).describe('User age').descriptor).widget
     ).toBe('number')
@@ -16,9 +31,9 @@ describe('Form Inspector & UI Widget Inference', () => {
     expect(inferWidget(s.enum(['a', 'b']).descriptor).widget).toBe('select')
   })
 
-  it('extracts structured FormFieldDescriptor hierarchy from struct schemas', () => {
+  it('describes a plain schema as a hierarchy of form fields', () => {
     const CharacterForm = s.struct({
-      heroName: s.string().min(1).label('Hero Name').placeholder('Enter hero name...'),
+      heroName: s.string().min(1).label('Hero Name').meta({ placeholder: 'Enter hero name...' }),
       level: s.integer().min(1).max(20).default(1),
       isAlive: s.boolean().default(true).label('Alive'),
       alignment: s.enum(['lawful', 'neutral', 'chaotic']).labels({
@@ -32,7 +47,7 @@ describe('Form Inspector & UI Widget Inference', () => {
       }),
     })
 
-    const fields = getFormFields(CharacterForm)
+    const fields = fieldsOf(CharacterForm)
 
     expect(fields.length).toBe(5)
 

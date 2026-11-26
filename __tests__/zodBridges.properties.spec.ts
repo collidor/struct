@@ -1,9 +1,10 @@
 // oxlint-disable typescript/no-explicit-any
 import { describe, it, vi } from 'vitest'
+import { fieldsOf } from './support/fields'
 import fc from 'fast-check'
 import { z as z3 } from 'zod'
 import { z as z4 } from 'zod/v4'
-import { fromZod, fromZodV3, fromJSONSchema, toJSONSchema, toZod, getFormFields, s } from '../src'
+import { fromZod, fromZodV3, fromJSONSchema, toJSONSchema, toZod, s } from '../src'
 import {
   buildStruct,
   buildZod,
@@ -233,7 +234,7 @@ describe('the struct bugs, as properties', () => {
         })
 
         for (const [label, schema] of [['s.enum', fromStruct], ['fromJSONSchema', fromJson]] as const) {
-          const options = (getFormFields(schema)[0]?.widgetProps['options'] ?? []) as { value: string }[]
+          const options = (fieldsOf(schema)[0]?.widgetProps['options'] ?? []) as { value: string }[]
           if (show(options.map(({ value }) => value)) !== show(enumValues)) {
             throw new Error(`${label}: options ${show(options)} do not list ${show(enumValues)}`)
           }

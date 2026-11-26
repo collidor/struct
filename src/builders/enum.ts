@@ -13,9 +13,6 @@ export class EnumSchema<
     super({
       kind: 'enum',
       values: values as unknown as (string | number)[],
-      metadata: {
-        widget: 'select',
-      },
       ...descriptor,
     } as EnumDescriptor)
 
@@ -46,16 +43,6 @@ export class EnumSchema<
   public labels(labels: Record<string, string>): this {
     const clone = this._clone()
     clone.descriptor.labels = labels
-    clone.descriptor.metadata = {
-      ...clone.descriptor.metadata,
-      widgetProps: {
-        ...clone.descriptor.metadata?.widgetProps,
-        options: this.values.map((v) => ({
-          value: v,
-          label: labels[String(v)] || String(v),
-        })),
-      },
-    }
     return clone as this
   }
 

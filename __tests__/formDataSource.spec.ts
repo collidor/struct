@@ -1,6 +1,13 @@
 import { describe, it, expect } from 'vitest'
+import { s } from '../src'
 import { f } from '../src/form'
-import { extractValueDependencies } from '../src/form/utils/dataSource'
+import {
+  extractValueDependencies,
+  normalizeHttpConfig,
+  normalizeProviderConfig,
+  normalizeVirtualConfig,
+  normalizePaginationConfig,
+} from '../src/form/utils/dataSource'
 
 describe('Serializable DataSource & Virtualization AST (Ticket 008)', () => {
   describe('extractValueDependencies', () => {
@@ -19,73 +26,65 @@ describe('Serializable DataSource & Virtualization AST (Ticket 008)', () => {
     })
   })
 
-  describe('Declarative HTTP DataSource (.fromHttp)', () => {
-    it('attaches a 100% serializable HttpDataSourceConfig and auto-extracts dependsOn', () => {
-      const clusterField = f
-        .string()
-        .asSelect()
-        .fromHttp({
-          url: '/api/v1/clusters',
-          query: {
-            region: '$values.region',
-            env: '$values.environment',
-            q: '$search',
-            page: '$page',
-          },
-          responseItemsPath: 'data.clusters',
-          valueKey: 'clusterId',
-          labelKey: 'clusterName',
-        })
+  describe('Declarative HTTP DataSource (normalizeHttpConfig)', () => {
+    it('builds a 100% serializable HttpDataSourceConfig and auto-extracts dependsOn', () => {
+      const dataSource = normalizeHttpConfig({
+        url: '/api/v1/clusters',
+        query: {
+          region: '$values.region',
+          env: '$values.environment',
+          q: '$search',
+          page: '$page',
+        },
+        responseItemsPath: 'data.clusters',
+        valueKey: 'clusterId',
+        labelKey: 'clusterName',
+      })
 
-      expect(clusterField.dataSource).toBeDefined()
-      expect(clusterField.dataSource?.type).toBe('http')
-      if (clusterField.dataSource?.type === 'http') {
-        expect(clusterField.dataSource.method).toBe('GET')
-        expect(clusterField.dataSource.url).toBe('/api/v1/clusters')
-        expect(clusterField.dataSource.dependsOn).toEqual(
-          expect.arrayContaining(['region', 'environment']),
-        )
-        expect(clusterField.dataSource.valueKey).toBe('clusterId')
-      }
+      expect(dataSource.type).toBe('http')
+      expect(dataSource.method).toBe('GET')
+      expect(dataSource.url).toBe('/api/v1/clusters')
+      expect(dataSource.dependsOn).toEqual(expect.arrayContaining(['region', 'environment']))
+      expect(dataSource.valueKey).toBe('clusterId')
 
       // JSON round-trip test (zero functions)
-      const serialized = JSON.stringify(clusterField.descriptor)
-      const parsed = JSON.parse(serialized)
-      expect(parsed.metadata.dataSource.type).toBe('http')
-      expect(parsed.metadata.dataSource.dependsOn).toEqual(
-        expect.arrayContaining(['region', 'environment']),
-      )
+      const parsed = JSON.parse(JSON.stringify(dataSource))
+      expect(parsed.type).toBe('http')
+      expect(parsed.dependsOn).toEqual(expect.arrayContaining(['region', 'environment']))
+    })
+
+    it('keeps explicit dependsOn and merges it with extracted dependencies', () => {
+      const dataSource = normalizeHttpConfig({
+        url: '/api/items',
+        method: 'POST',
+        body: { region: '$values.region' },
+        dependsOn: ['manual'],
+      })
+      expect(dataSource.method).toBe('POST')
+      expect(dataSource.dependsOn).toEqual(expect.arrayContaining(['manual', 'region']))
+      expect(dataSource.dependsOn?.length).toBe(2)
     })
   })
 
-  describe('Named Provider DataSource (.fromProvider)', () => {
-    it('attaches ProviderDataSourceConfig with reactive parameter dependencies', () => {
-      const usersField = f
-        .array(f.string())
-        .asCombobox({ multiple: true })
-        .fromProvider('iam_users', {
-          params: { department: '$values.org.department' },
-          debounceMs: 300,
-        })
+  describe('Named Provider DataSource (normalizeProviderConfig)', () => {
+    it('builds ProviderDataSourceConfig with reactive parameter dependencies', () => {
+      const dataSource = normalizeProviderConfig('iam_users', {
+        params: { department: '$values.org.department' },
+        debounceMs: 300,
+      })
 
-      expect(usersField.dataSource).toBeDefined()
-      expect(usersField.dataSource?.type).toBe('provider')
-      if (usersField.dataSource?.type === 'provider') {
-        expect(usersField.dataSource.key).toBe('iam_users')
-        expect(usersField.dataSource.dependsOn).toEqual(['org'])
-        expect(usersField.dataSource.debounceMs).toBe(300)
-      }
+      expect(dataSource.type).toBe('provider')
+      expect(dataSource.key).toBe('iam_users')
+      expect(dataSource.dependsOn).toEqual(['org'])
+      expect(dataSource.debounceMs).toBe(300)
     })
   })
 
-  describe('Virtualization & Pagination (.virtual, .paginate)', () => {
-    it('normalizes virtual scroll defaults on collection views', () => {
-      const tableField = f
-        .array(f.struct({ id: f.string(), name: f.string() }))
-        .asTable()
-        .virtual({ itemHeight: 48, overscan: 10, viewportHeight: '400px' })
-
-      expect(tableField.virtualConfig).toEqual({
+  describe('Virtualization & Pagination normalization', () => {
+    it('normalizes virtual scroll defaults', () => {
+      expect(
+        normalizeVirtualConfig({ itemHeight: 48, overscan: 10, viewportHeight: '400px' }),
+      ).toEqual({
         enabled: true,
         itemHeight: 48,
         overscan: 10,
@@ -93,41 +92,40 @@ describe('Serializable DataSource & Virtualization AST (Ticket 008)', () => {
         threshold: 100,
       })
 
-      const comboboxField = f.array(f.string()).asCombobox().virtual(true)
-      expect(comboboxField.virtualConfig).toEqual({
+      expect(normalizeVirtualConfig(true)).toEqual({
         enabled: true,
         itemHeight: 40,
         overscan: 5,
         viewportHeight: '320px',
         threshold: 100,
       })
+      expect(normalizeVirtualConfig(false)).toEqual({ enabled: false })
     })
 
-    it('normalizes pagination config on schemas', () => {
-      const pagedField = f.array(f.string()).paginate(25)
-      expect(pagedField.paginationConfig).toEqual({
-        mode: 'pages',
-        pageSize: 25,
+    it('normalizes pagination config', () => {
+      expect(normalizePaginationConfig(25)).toEqual({ mode: 'pages', pageSize: 25 })
+      expect(normalizePaginationConfig({ mode: 'infinite' })).toEqual({
+        mode: 'infinite',
+        pageSize: 50,
       })
     })
   })
 
-  describe('Form Node Resolution', () => {
-    it('propagates dataSource, virtual, and dependsOn to FormFieldNode in resolveNodeTree', () => {
+  describe('Form Node Resolution (f.field options)', () => {
+    it('propagates dataSource, virtual, and dependsOn to FormFieldNode in toFormTree', () => {
       const schema = f.struct('ClusterForm', {
-        region: f.string().default('us-east-1'),
-        cluster: f
-          .string()
-          .asSelect()
-          .fromHttp({
+        region: s.string().default('us-east-1'),
+        cluster: f.field(s.string(), {
+          dataSource: normalizeHttpConfig({
             url: '/api/v1/clusters',
             query: { region: '$values.region' },
           }),
-        members: f
-          .array(f.string())
-          .asCombobox({ multiple: true })
-          .virtual({ itemHeight: 32 })
-          .paginate(50),
+        }),
+        members: f.field(s.array(s.string()), {
+          widget: f.combobox({ multiple: true }),
+          virtual: normalizeVirtualConfig({ itemHeight: 32 }),
+          pagination: normalizePaginationConfig(50),
+        }),
       })
 
       const tree = schema.toFormTree({ region: 'eu-west-1' })
@@ -145,6 +143,21 @@ describe('Serializable DataSource & Virtualization AST (Ticket 008)', () => {
       const jsonTree = JSON.stringify(tree)
       expect(jsonTree).toBeTruthy()
       expect(() => JSON.parse(jsonTree)).not.toThrow()
+    })
+
+    it('accepts dataSource config directly on the field options', () => {
+      const schema = f.struct({
+        users: f.field(s.array(s.string()), {
+          widget: f.combobox({ multiple: true }),
+          dataSource: normalizeProviderConfig('iam_users', {
+            params: { department: '$values.org.department' },
+            debounceMs: 300,
+          }),
+        }),
+      })
+      const node = schema.toFormTree({}).fieldsByKey.users
+      expect(node.dataSource?.type).toBe('provider')
+      expect(node.dependsOn).toEqual(['org'])
     })
   })
 })

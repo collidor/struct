@@ -2,6 +2,8 @@
 import type { BaseSchema } from '../core/base'
 import type { TypeDescriptor } from '../types/ast'
 import type { Infer, InferInput, Prettify } from '../types/inference'
+import type { FormField } from './field'
+import type { PathScope } from './paths'
 
 /**
  * Union to intersection helper.
@@ -34,8 +36,6 @@ export type LayoutContainerKind =
   | 'accordion'
   | 'split'
   | 'steps'
-
-export type FormNodeKind = 'field' | LayoutContainerKind | UIOnlyNodeKind | 'when'
 
 // ---------------------------------------------------------------------------
 // Markers & Descriptors
@@ -133,30 +133,6 @@ export interface ConditionalMarker<TBranch = Record<string, any>, TElse = Record
 // Type-Level Inference: Stripping UI-only & Flattening Layouts
 // ---------------------------------------------------------------------------
 
-export type FlattenFieldOutput<T> = T extends UIOnlyMarker
-  ? {}
-  : T extends LayoutContainerMarker<infer Inner>
-    ? InferFormOutput<Inner>
-    : T extends ConditionalMarker<infer Inner, infer Else>
-      ? Else extends Record<string, any>
-        ? Partial<InferFormOutput<Inner>> & Partial<InferFormOutput<Else>>
-        : Partial<InferFormOutput<Inner>>
-      : T extends BaseSchema<any, infer O>
-        ? O
-        : never
-
-export type FlattenFieldInput<T> = T extends UIOnlyMarker
-  ? {}
-  : T extends LayoutContainerMarker<infer Inner>
-    ? InferFormInput<Inner>
-    : T extends ConditionalMarker<infer Inner, infer Else>
-      ? Else extends Record<string, any>
-        ? Partial<InferFormInput<Inner>> & Partial<InferFormInput<Else>>
-        : Partial<InferFormInput<Inner>>
-      : T extends BaseSchema<infer I, any>
-        ? I
-        : never
-
 export type InferFormOutput<TShape> = Prettify<
   UnionToIntersection<
     {
@@ -168,9 +144,13 @@ export type InferFormOutput<TShape> = Prettify<
             ? Else extends Record<string, any>
               ? Partial<InferFormOutput<Inner>> & Partial<InferFormOutput<Else>>
               : Partial<InferFormOutput<Inner>>
-            : TShape[K] extends BaseSchema<any, infer O>
-              ? { [P in K]: O }
-              : {}
+            : TShape[K] extends FormField<infer S, any>
+              ? S extends BaseSchema<any, infer O>
+                ? undefined extends O ? { [P in K]?: O } : { [P in K]: O }
+                : {}
+              : TShape[K] extends BaseSchema<any, infer O>
+                ? undefined extends O ? { [P in K]?: O } : { [P in K]: O }
+                : {}
     }[keyof TShape]
   >
 >
@@ -186,9 +166,13 @@ export type InferFormInput<TShape> = Prettify<
             ? Else extends Record<string, any>
               ? Partial<InferFormInput<Inner>> & Partial<InferFormInput<Else>>
               : Partial<InferFormInput<Inner>>
-            : TShape[K] extends BaseSchema<infer I, any>
-              ? { [P in K]: I }
-              : {}
+            : TShape[K] extends FormField<infer S, any>
+              ? S extends BaseSchema<infer I, any>
+                ? undefined extends I ? { [P in K]?: I } : { [P in K]: I }
+                : {}
+              : TShape[K] extends BaseSchema<infer I, any>
+                ? undefined extends I ? { [P in K]?: I } : { [P in K]: I }
+                : {}
     }[keyof TShape]
   >
 >
@@ -282,15 +266,6 @@ export interface ComboboxViewConfig {
   virtual?: VirtualScrollConfig | boolean
 }
 
-export type CollectionViewMode =
-  | { mode: 'table'; config?: TableViewConfig }
-  | { mode: 'list'; config?: ListViewConfig }
-  | { mode: 'cards'; config?: CardsViewConfig }
-  | { mode: 'tabs'; config?: TabsViewConfig }
-  | { mode: 'tags'; config?: TagsViewConfig }
-  | { mode: 'combobox'; config?: ComboboxViewConfig }
-
-
 // ---------------------------------------------------------------------------
 // Form Context & Resolved Node Tree
 // ---------------------------------------------------------------------------
@@ -301,16 +276,24 @@ export interface FormContext {
   rootValues?: Record<string, unknown>
   path?: string
   index?: number
+  /** Where the object being built sits in the root values; resolves $root/$parent/$item. */
+  scope?: PathScope
   stepIndex?: number
   [key: string]: unknown
 }
 
 export interface FormFieldNode {
   kind: 'field'
+  /** Unique in the tree. For a field this is its template path. */
+  id: string
+  /** Where this field sat before its path was made relative to a row (see relativizeNodes). */
+  absPath?: string
   key: string
   path: string
   label: string
   description?: string
+  placeholder?: string
+  helpText?: string
   widget: string
   widgetProps: Record<string, unknown>
   required: boolean
@@ -321,6 +304,16 @@ export interface FormFieldNode {
   defaultValue?: unknown
   type: string
   descriptor: TypeDescriptor
+  /** Nested object fields; their paths are relative to this form's root. */
+  children?: FormNode[]
+  /** Template for an array item; [] in paths denotes the item index. */
+  item?: FormFieldNode
+  /**
+   * Builds `item` for one real row, so `when` conditions in the row see its values and the
+   * rest of the form. `rowPath` is the row's concrete path, e.g. `orders[2]`. Not enumerable:
+   * it is dropped when the tree is serialized.
+   */
+  resolveItem?: (root: unknown, rowPath: string | readonly (string | number | symbol)[]) => FormFieldNode | undefined
   options?: Array<{ value: string | number; label: string }>
   dataSource?: DataSourceConfig
   virtual?: VirtualScrollConfig
@@ -331,6 +324,8 @@ export interface FormFieldNode {
 
 export interface FormUIOnlyNode {
   kind: 'ui_only'
+  /** Unique in the tree: the chain of containing nodes plus this key. */
+  id: string
   key: string
   path: string
   uiKind: UIOnlyNodeKind
@@ -340,6 +335,8 @@ export interface FormUIOnlyNode {
 
 export interface FormLayoutNode {
   kind: 'layout'
+  /** Unique in the tree: the chain of containing nodes plus this key. */
+  id: string
   key: string
   path: string
   layoutKind: LayoutContainerKind

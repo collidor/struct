@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
+import { fieldsOf } from './support/fields'
 import { z } from 'zod'
 import { z as z4 } from 'zod/v4'
-import { s, fromJSONSchema, toJSONSchema, fromZodV3, getFormFields } from '../src'
+import { s, fromJSONSchema, toJSONSchema, fromZodV3 } from '../src'
 
 const ok = (schema: { safeParse: (v: unknown) => { success: boolean } }, value: unknown) => schema.safeParse(value).success
 
@@ -14,7 +15,7 @@ describe('fromJSONSchema: exclusive bounds', () => {
   })
 
   it('should make an exclusive integer bound a bound a form can show', () => {
-    const field = getFormFields(fromJSONSchema({ type: 'object', properties: { n: { type: 'integer', exclusiveMinimum: 4, exclusiveMaximum: 9 } } }))[0]
+    const field = fieldsOf(fromJSONSchema({ type: 'object', properties: { n: { type: 'integer', exclusiveMinimum: 4, exclusiveMaximum: 9 } } }))[0]
     expect(field?.widgetProps).toMatchObject({ min: 5, max: 8 })
   })
 
@@ -37,7 +38,7 @@ describe('fromJSONSchema: exclusive bounds', () => {
 
 describe('getFormFields: enum options', () => {
   it('should list the options of an enum that names its own widget, as every enum does', () => {
-    const field = getFormFields(s.struct({ kind: s.enum(['email', 'phone']) }))[0]
+    const field = fieldsOf(s.struct({ kind: s.enum(['email', 'phone']) }))[0]
     expect(field?.widget).toBe('select')
     expect(field?.widgetProps['options']).toStrictEqual([
       { value: 'email', label: 'Email' },
@@ -47,12 +48,13 @@ describe('getFormFields: enum options', () => {
 
   it('should keep options a field supplies itself', () => {
     const options = [{ value: 'e', label: 'Custom' }]
-    const field = getFormFields(s.struct({ kind: s.enum(['email']).asSelect({ options }) }))[0]
+    const field = fieldsOf(s.struct({ kind: s.enum(['email']).meta({ widget: 'select', widgetProps: { options } }) }))[0]
     expect(field?.widgetProps['options']).toStrictEqual(options)
   })
 
   it('should list the options of an array of enums', () => {
-    const field = getFormFields(s.struct({ tags: s.array(s.enum(['a', 'b'])).asWidget('multiselect') }))[0]
+    const field = fieldsOf(s.struct({ tags: s.array(s.enum(['a', 'b'])) }))[0]
+    expect(field?.widget).toBe('multiselect')
     expect((field?.widgetProps['options'] as { value: string }[]).map(({ value }) => value)).toStrictEqual(['a', 'b'])
   })
 })

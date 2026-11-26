@@ -11,7 +11,7 @@ describe('Ticket 002: Safe Descriptor Cloning and Error Formatting', () => {
       expect(typeof base.descriptor.default).toBe('function')
 
       // Chain multiple modifiers
-      const chained = base.optional().label('User ID').placeholder('Enter ID')
+      const chained = base.optional().label('User ID').meta({ placeholder: 'Enter ID' })
       expect(typeof chained.descriptor.default).toBe('function')
 
       // Safe parse with undefined should invoke default generator

@@ -1,334 +1,109 @@
 // oxlint-disable typescript/no-explicit-any
-import type { FormStructSchema } from '../builders/formStruct'
-import type { FormNodeTree, FormNode, FormLayoutNode } from '../types'
-import { isLayoutContainerNode } from '../nodes/layout'
+import type { FormNodeTree } from '../types'
+import type { PathSegment } from '../paths'
+import { FormSession, FormValidationError, type FormIssue, type FormSessionOptions, type FormSource } from './session'
+import { ScopedFormController, type ScopedFormOptions } from './scopedController'
 
-export interface FormControllerOptions<T extends Record<string, unknown> = Record<string, unknown>> {
+export type { FormState } from './session'
+
+export interface FormControllerOptions<T extends Record<string, unknown> = Record<string, unknown>>
+  extends FormSessionOptions<T> {
   initialValues?: Partial<T>
+  /** Called with the parsed output (defaults applied, inactive branches dropped). */
   onSubmit?: (values: T) => void | Promise<void>
-  onChange?: (values: T, changedPath: string) => void
-}
-
-export interface FormState<T extends Record<string, unknown> = Record<string, unknown>> {
-  values: T
-  errors: Record<string, string[]>
-  touched: string[]
-  dirty: boolean
-  isValid: boolean
-  isSubmitting: boolean
-  currentStep: number
-  totalSteps: number
-  tree: FormNodeTree
 }
 
 /**
- * Stateful, framework-agnostic form controller managing reactive state,
- * path mutations, array item operations, wizard step navigation, and validation.
+ * Stateful, framework-agnostic controller for a whole form: path-addressed values, errors,
+ * steps and tabs of any container, list operations, and drafts of list rows (`scoped`).
  */
-export class HeadlessFormController<T extends Record<string, unknown> = Record<string, unknown>> {
-  public readonly schema: FormStructSchema<any>
+export class HeadlessFormController<
+  T extends Record<string, unknown> = Record<string, unknown>,
+> extends FormSession<T> {
+  public readonly schema: FormSource
   private values: T
   private initialValues: T
-  private errors: Record<string, string[]> = {}
-  private touched = new Set<string>()
-  private isSubmitting = false
-  private currentStep = 0
-  private listeners = new Set<(state: FormState<T>) => void>()
   private onSubmitCallback?: (values: T) => void | Promise<void>
-  private onChangeCallback?: (values: T, changedPath: string) => void
 
-  constructor(schema: FormStructSchema<any>, options: FormControllerOptions<T> = {}) {
+  constructor(schema: FormSource, options: FormControllerOptions<T> = {}) {
+    super(options)
     this.schema = schema
     this.initialValues = (options.initialValues ? { ...options.initialValues } : {}) as T
     this.values = { ...this.initialValues }
     this.onSubmitCallback = options.onSubmit
-    this.onChangeCallback = options.onChange
   }
 
-  public getValues(): T {
-    return { ...this.values }
+  protected read(): T {
+    return this.values
   }
 
-  public getValue(path: string): unknown {
-    const parts = path.split('.')
-    let current: unknown = this.values
-    for (const part of parts) {
-      if (current && typeof current === 'object' && part in (current as Record<string, unknown>)) {
-        current = (current as Record<string, unknown>)[part]
-      } else {
-        return undefined
-      }
-    }
-    return current
+  protected write(next: T): void {
+    this.values = next
   }
 
-  public setValue(path: string, value: unknown): void {
-    const parts = path.split('.')
-    const root = { ...this.values } as Record<string, unknown>
-    let current: Record<string, unknown> = root
-
-    for (let i = 0; i < parts.length - 1; i++) {
-      const part = parts[i]
-      if (!current[part] || typeof current[part] !== 'object') {
-        current[part] = {}
-      } else {
-        current[part] = { ...(current[part] as Record<string, unknown>) }
-      }
-      current = current[part] as Record<string, unknown>
-    }
-
-    current[parts[parts.length - 1]] = value
-    this.values = root as T
-    this.touched.add(path)
-
-    // Re-validate field
-    this.validatePath(path)
-
-    this.onChangeCallback?.(this.values, path)
-    this.notify()
+  public get source(): FormSource {
+    return this.schema
   }
 
-  public setValues(newValues: Partial<T>): void {
-    this.values = { ...this.values, ...newValues }
-    this.notify()
+  public get base(): PathSegment[] {
+    return []
   }
 
-  public getErrors(): Record<string, string[]> {
-    return { ...this.errors }
+  public readRoot(): unknown {
+    return this.values
   }
 
-  public isFieldTouched(path: string): boolean {
-    return this.touched.has(path)
+  public getTree(): FormNodeTree {
+    return this.schema.toFormTree(this.values)
   }
 
-  public isDirty(): boolean {
+  protected issues(): FormIssue[] {
+    const result = this.schema.safeParse(this.values)
+    return result.success ? [] : result.issues
+  }
+
+  protected isDirty(): boolean {
     return JSON.stringify(this.values) !== JSON.stringify(this.initialValues)
   }
 
-  public isValid(): boolean {
-    return Object.keys(this.errors).length === 0
-  }
-
-  public getCurrentStep(): number {
-    return this.currentStep
-  }
-
-  public getTotalSteps(): number {
-    const stepsNode = this._findStepsNode()
-    if (!stepsNode) return 1
-    return Object.keys(stepsNode.shape).length
-  }
-
-  private _findStepsNode(): { shape: Record<string, any> } | undefined {
-    for (const item of Object.values(this.schema.shape)) {
-      if (isLayoutContainerNode(item) && item.layoutKind === 'steps') {
-        return item
-      }
-    }
-    return undefined
-  }
-
-  public nextStep(): boolean {
-    const total = this.getTotalSteps()
-    if (this.currentStep < total - 1) {
-      const valid = this.validateStep(this.currentStep)
-      if (valid) {
-        this.currentStep++
-        this.notify()
-        return true
-      }
-      return false
-    }
-    return false
-  }
-
-  public prevStep(): boolean {
-    if (this.currentStep > 0) {
-      this.currentStep--
-      this.notify()
-      return true
-    }
-    return false
-  }
-
-  public goToStep(stepIndex: number): boolean {
-    const total = this.getTotalSteps()
-    if (stepIndex >= 0 && stepIndex < total) {
-      this.currentStep = stepIndex
-      this.notify()
-      return true
-    }
-    return false
-  }
-
-  public validate(): boolean {
-    const result = this.schema.safeParse(this.values)
+  /** Replaces every value, and forgets errors and touched fields. */
+  public reset(values: Partial<T> = {}): void {
+    this.initialValues = { ...values } as T
+    this.values = { ...values } as T
     this.errors = {}
-    if (!result.success) {
-      for (const issue of result.issues) {
-        const p = issue.path?.join('.') || '_root'
-        if (!this.errors[p]) this.errors[p] = []
-        this.errors[p].push(issue.message)
-      }
-    }
+    this.touched = new Set()
+    this.stepErrors = {}
     this.notify()
-    return result.success
   }
 
-  public validatePath(path: string): boolean {
-    const result = this.schema.safeParse(this.values)
-    delete this.errors[path]
-    if (!result.success) {
-      for (const issue of result.issues) {
-        const p = issue.path?.join('.') || '_root'
-        if (p === path) {
-          if (!this.errors[path]) this.errors[path] = []
-          this.errors[path].push(issue.message)
-        }
-      }
-    }
-    return !this.errors[path]
+  /**
+   * A draft of one row of a list, for editing in a dialog. `index` omitted means a new row.
+   * Nothing reaches the form until `commit()`.
+   */
+  public scoped<R extends Record<string, unknown> = Record<string, unknown>>(
+    listPath: string,
+    index?: number,
+    options?: ScopedFormOptions<R>,
+  ): ScopedFormController<R> {
+    return new ScopedFormController<R>(this, listPath, index, options)
   }
 
-  public validateStep(stepIndex: number): boolean {
-    const stepsNode = this._findStepsNode()
-    if (!stepsNode) return this.validate()
-
-    const stepKeys = Object.keys(stepsNode.shape)
-    const targetKey = stepKeys[stepIndex]
-    if (!targetKey) return true
-
-    const stepItem = stepsNode.shape[targetKey]
-    const stepFields: string[] = []
-
-    const collectKeys = (shape: Record<string, any>) => {
-      for (const [k, val] of Object.entries(shape)) {
-        if (isLayoutContainerNode(val)) {
-          collectKeys(val.shape)
-        } else {
-          stepFields.push(k)
-        }
-      }
-    }
-
-    if (isLayoutContainerNode(stepItem)) {
-      collectKeys(stepItem.shape)
-    }
-
-    const result = this.schema.safeParse(this.values)
-    let stepValid = true
-
-    for (const f of stepFields) {
-      delete this.errors[f]
-    }
-
-    if (!result.success) {
-      for (const issue of result.issues) {
-        const p = issue.path?.join('.') || ''
-        if (stepFields.includes(p)) {
-          if (!this.errors[p]) this.errors[p] = []
-          this.errors[p].push(issue.message)
-          stepValid = false
-        }
-      }
-    }
-
-    this.notify()
-    return stepValid
-  }
-
-  // -------------------------------------------------------------------------
-  // Collection / Array Operations
-  // -------------------------------------------------------------------------
-
-  public arrayPush(path: string, item: unknown): void {
-    const arr = (this.getValue(path) as unknown[]) || []
-    this.setValue(path, [...arr, item])
-  }
-
-  public arrayRemove(path: string, index: number): void {
-    const arr = (this.getValue(path) as unknown[]) || []
-    if (index >= 0 && index < arr.length) {
-      const next = [...arr]
-      next.splice(index, 1)
-      this.setValue(path, next)
-    }
-  }
-
-  public arrayMove(path: string, fromIndex: number, toIndex: number): void {
-    const arr = (this.getValue(path) as unknown[]) || []
-    if (
-      fromIndex >= 0 &&
-      fromIndex < arr.length &&
-      toIndex >= 0 &&
-      toIndex < arr.length &&
-      fromIndex !== toIndex
-    ) {
-      const next = [...arr]
-      const [item] = next.splice(fromIndex, 1)
-      next.splice(toIndex, 0, item)
-      this.setValue(path, next)
-    }
-  }
-
-  public arrayDuplicate(path: string, index: number): void {
-    const arr = (this.getValue(path) as unknown[]) || []
-    if (index >= 0 && index < arr.length) {
-      const item = arr[index]
-      const cloned = typeof item === 'object' && item !== null ? JSON.parse(JSON.stringify(item)) : item
-      const next = [...arr]
-      next.splice(index + 1, 0, cloned)
-      this.setValue(path, next)
-    }
-  }
-
-  // -------------------------------------------------------------------------
-  // State Snapshot & Subscriptions
-  // -------------------------------------------------------------------------
-
-  public getState(): FormState<T> {
-    const tree = this.schema.toFormTree(this.values)
-    return {
-      values: this.getValues(),
-      errors: this.getErrors(),
-      touched: Array.from(this.touched),
-      dirty: this.isDirty(),
-      isValid: this.isValid(),
-      isSubmitting: this.isSubmitting,
-      currentStep: this.currentStep,
-      totalSteps: this.getTotalSteps(),
-      tree,
-    }
-  }
-
-  public subscribe(listener: (state: FormState<T>) => void): () => void {
-    this.listeners.add(listener)
-    listener(this.getState())
-    return () => {
-      this.listeners.delete(listener)
-    }
-  }
-
-  private notify(): void {
-    const state = this.getState()
-    for (const listener of this.listeners) {
-      listener(state)
-    }
-  }
-
+  /** Validates, then returns the parsed output; throws a FormValidationError when invalid. */
   public async submit(): Promise<T> {
     this.isSubmitting = true
     this.notify()
-
     try {
-      const valid = this.validate()
-      if (!valid) {
-        throw new Error('Form validation failed')
+      const result = this.schema.safeParse(this.values)
+      this.errors = {}
+      if (!result.success) {
+        for (const issue of result.issues) this.addError(issue)
+        this.notify()
+        throw new FormValidationError(this.errors, result.issues)
       }
-      if (this.onSubmitCallback) {
-        await this.onSubmitCallback(this.values)
-      }
-      return this.values
+      const data = result.data as T
+      this.errors = {}
+      if (this.onSubmitCallback) await this.onSubmitCallback(data)
+      return data
     } finally {
       this.isSubmitting = false
       this.notify()
@@ -337,7 +112,7 @@ export class HeadlessFormController<T extends Record<string, unknown> = Record<s
 }
 
 export function createFormController<T extends Record<string, unknown> = Record<string, unknown>>(
-  schema: FormStructSchema<any>,
+  schema: FormSource,
   options?: FormControllerOptions<T>,
 ): HeadlessFormController<T> {
   return new HeadlessFormController(schema, options)

@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { fieldsOf } from './support/fields'
 import { z } from 'zod'
 import {
   s,
@@ -7,7 +8,6 @@ import {
   getAxonDataType,
   toZod,
   fromZodV3,
-  getFormFields,
   inferWidget,
   BaseSchema,
   toJSONSchema,
@@ -16,6 +16,7 @@ import {
   generateStructDDL,
   formatColumnDefinition,
 } from '../src'
+import { f } from '../src/form'
 import { UniversalEdgeEngine } from '../src/edges/universalEdge'
 import { sortComputedDefsTopologically } from '../src/computed/astEvaluator'
 
@@ -149,22 +150,24 @@ describe('Code Review Bug Fixes & Refactorings', () => {
   })
 
   describe('Form Inspector Record Array Children & Dispatch Tables', () => {
-    it('exposes children for record array items in getFormFields', () => {
+    it('describes a list of records as a list with a record row template', () => {
       const schema = s.struct({
         settings: s.array(s.record(s.string().label('Setting Value'))),
       })
 
-      const fields = getFormFields(schema)
+      const fields = fieldsOf(schema)
       expect(fields[0].widget).toBe('list')
-      expect(fields[0].children).toBeDefined()
-      expect(fields[0].children?.[0]?.key).toBe('value')
-      expect(fields[0].children?.[0]?.label).toBe('Setting Value')
+      expect(fields[0].item?.type).toBe('record')
     })
 
     it('infers widget correctly using dispatch table without monolithic switch', () => {
       expect(inferWidget(s.string().email().descriptor).props.type).toBe('email')
       expect(inferWidget(s.number().min(0).max(50).descriptor).widget).toBe('number')
-      expect(inferWidget(s.number().min(0).max(50).asRange().descriptor).widget).toBe('range')
+      expect(
+        f
+          .struct({ level: f.field(s.number().min(0).max(50), { widget: f.range() }) })
+          .toFormTree({}).fieldsByKey.level?.widget,
+      ).toBe('range')
       expect(inferWidget(s.boolean().descriptor).widget).toBe('switch')
       expect(inferWidget(s.date().descriptor).widget).toBe('date')
     })

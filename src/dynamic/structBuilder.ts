@@ -47,7 +47,7 @@ export class StructBuilder {
 
     if (options.label) finalSchema = finalSchema.label(options.label)
     if (options.description) finalSchema = finalSchema.description(options.description)
-    if (options.placeholder) finalSchema = finalSchema.placeholder(options.placeholder)
+    if (options.placeholder) finalSchema = finalSchema.meta({ placeholder: options.placeholder })
     if (options.default !== undefined) finalSchema = finalSchema.default(options.default)
     if (options.metadata) finalSchema = finalSchema.meta(options.metadata)
     if (options.required === false) finalSchema = finalSchema.optional()

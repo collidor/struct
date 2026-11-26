@@ -1,9 +1,8 @@
 // oxlint-disable typescript/no-explicit-any
-import { s } from '../builders/index'
-import type { BaseSchema } from '../core/base'
-import type { StructDescriptor, ArrayDescriptor } from '../types/ast'
+import type { StructDescriptor } from '../types/ast'
 import { FormStructSchema } from './builders/formStruct'
-import { FormArraySchema } from './extensions/array'
+import { field } from './field'
+import { textInput, textarea, numberInput, slider, range, table, tags, list, cards, tabsWidget, combobox } from './widgets'
 import {
   row,
   grid,
@@ -57,33 +56,20 @@ const createFormStruct: FormStructBuilderFn = ((
 }) as FormStructBuilderFn
 
 export const f = {
-  // 1. Primitive Schema Builders (interoperable with s.*)
-  string: s.string,
-  number: s.number,
-  integer: s.integer,
-  boolean: s.boolean,
-  date: s.date,
-  bigint: s.bigint,
-  null: s.null,
-  any: s.any,
-  unknown: s.unknown,
-  optional: s.optional,
-  nullable: s.nullable,
-  nullish: s.nullish,
-  coerce: s.coerce,
-  enum: s.enum,
-  literal: s.literal,
-  union: s.union,
-  tuple: s.tuple,
-  record: s.record,
-  pipe: s.pipe,
-
-  // 2. Form Structures & Collection Views
+  // Data schemas come from s.*; fields and widgets describe presentation.
   struct: createFormStruct,
-  array: <TItem extends BaseSchema<any, any>>(
-    item: TItem,
-    descriptor?: Partial<ArrayDescriptor>,
-  ): FormArraySchema<TItem> => new FormArraySchema(item, descriptor),
+  field,
+  textInput,
+  textarea,
+  numberInput,
+  slider,
+  range,
+  table,
+  tags,
+  list,
+  cards,
+  tabsWidget,
+  combobox,
 
   // 3. Layout Containers (transparent in data shape, grouped in UI)
   row,
@@ -117,7 +103,6 @@ export const f = {
     context?: Partial<FormContext>,
   ): FormNodeTree => schema.toFormTree(values, context),
 
-  fromDescriptor: s.fromDescriptor,
 }
 
 export const form = f

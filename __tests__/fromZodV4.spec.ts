@@ -1,8 +1,9 @@
 // oxlint-disable typescript/no-explicit-any
 import { describe, it, expect } from 'vitest'
+import { fieldsOf } from './support/fields'
 import { z } from 'zod/v4'
 import { z as z3 } from 'zod'
-import { fromZod, fromZodV3, getFormFields } from '../src'
+import { fromZod, fromZodV3 } from '../src'
 
 const ok = (schema: any, value: unknown) => schema.safeParse(value).success
 const messageOf = (schema: any, value: unknown): string | undefined => schema.safeParse(value).issues?.[0]?.message
@@ -33,7 +34,7 @@ describe('fromZod (Zod 4)', () => {
     it('should keep the values of an enum instead of an empty list', () => {
       expect(ok(struct, { caseId: 3, kind: 'b' })).toBe(true)
       expect(ok(struct, { caseId: 3, kind: 'z' })).toBe(false)
-      const kind = getFormFields(struct).find((field) => field.key === 'kind')
+      const kind = fieldsOf(struct).find((field) => field.key === 'kind')
       expect(kind?.widgetProps['options']).toStrictEqual([
         { value: 'a', label: 'A' },
         { value: 'b', label: 'B' },
@@ -83,7 +84,7 @@ describe('fromZod (Zod 4)', () => {
     })
 
     it('should turn an exclusive integer bound into a bound a form can show', () => {
-      const field = getFormFields(fromZod(z.object({ n: z.int().gt(4).lt(9) })))[0]
+      const field = fieldsOf(fromZod(z.object({ n: z.int().gt(4).lt(9) })))[0]
       expect(field?.widgetProps).toMatchObject({ min: 5, max: 8 })
     })
 

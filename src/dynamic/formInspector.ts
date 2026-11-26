@@ -8,33 +8,6 @@ import type {
   ArrayDescriptor,
   EnumDescriptor,
 } from '../types/ast'
-import type { BaseSchema } from '../core/base'
-
-export interface FormFieldDescriptor {
-  key: string
-  path: string
-  label: string
-  description?: string
-  placeholder?: string
-  helpText?: string
-  widget: WidgetHint
-  widgetProps: Record<string, unknown>
-  required: boolean
-  nullable: boolean
-  defaultValue?: unknown
-  type: string
-  order: number
-  colSpan?: number
-  group?: string
-  section?: string
-  hidden?: boolean
-  disabled?: boolean
-  readonly?: boolean
-  badge?: string
-  icon?: string
-  children?: FormFieldDescriptor[]
-  itemDescriptor?: FormFieldDescriptor
-}
 
 function toTitleCase(camelCase: string): string {
   const result = camelCase.replace(/([A-Z])/g, ' $1')
@@ -53,8 +26,6 @@ function inferStringWidget(
   if (desc.format === 'color') return { widget: 'color', props }
   if (desc.format === 'date') return { widget: 'date', props }
   if (desc.format === 'datetime') return { widget: 'datetime', props }
-  if (desc.maxLength && desc.maxLength > 100)
-    return { widget: 'textarea', props: { ...props, rows: 4 } }
   return { widget: 'text', props }
 }
 
@@ -65,9 +36,6 @@ function inferNumberWidget(
   if (desc.min !== undefined) props.min = desc.min
   if (desc.max !== undefined) props.max = desc.max
   if (desc.step !== undefined) props.step = desc.step
-  if (desc.metadata?.widget === 'slider' || desc.metadata?.widget === 'range') {
-    return { widget: desc.metadata.widget, props }
-  }
   return { widget: 'number', props }
 }
 
@@ -192,104 +160,4 @@ export function inferWidget(desc: TypeDescriptor): {
   }
 
   return { widget: 'text', props }
-}
-
-/**
- * Recursively inspects a StructSchema and produces a tree of FormFieldDescriptors
- * suitable for auto-generating dynamic forms and UIs.
- */
-export function getFormFields(
-  schemaOrDescriptor: BaseSchema<any, any> | TypeDescriptor,
-  parentPath = '',
-): FormFieldDescriptor[] {
-  const desc: TypeDescriptor =
-    'descriptor' in schemaOrDescriptor ? schemaOrDescriptor.descriptor : schemaOrDescriptor
-
-  if (desc.kind !== 'struct' || !desc.fields) {
-    return []
-  }
-
-  const fields: FormFieldDescriptor[] = []
-  let autoOrder = 0
-
-  for (const [key, fieldDesc] of Object.entries(desc.fields)) {
-    const currentPath = parentPath ? `${parentPath}.${key}` : key
-    const meta: FieldMetadata = fieldDesc.metadata || {}
-    const { widget, props } = inferWidget(fieldDesc)
-    const label = meta.label || fieldDesc.title || toTitleCase(key)
-    const order = meta.order !== undefined ? meta.order : autoOrder++
-
-    const fieldDescriptor: FormFieldDescriptor = {
-      key,
-      path: currentPath,
-      label,
-      description: meta.description || fieldDesc.description,
-      placeholder: meta.placeholder,
-      helpText: meta.helpText,
-      widget,
-      widgetProps: props,
-      required: !fieldDesc.optional,
-      nullable: !!fieldDesc.nullable,
-      defaultValue: fieldDesc.default,
-      type: fieldDesc.kind,
-      order,
-      colSpan: meta.colSpan,
-      group: meta.group,
-      section: meta.section,
-      hidden: meta.hidden,
-      disabled: meta.disabled,
-      readonly: meta.readonly,
-      badge: meta.badge,
-      icon: meta.icon,
-    }
-
-    if (fieldDesc.kind === 'struct' && fieldDesc.fields) {
-      fieldDescriptor.children = getFormFields(fieldDesc, currentPath)
-    }
-
-    if (fieldDesc.kind === 'array' && fieldDesc.items) {
-      const itemDesc = fieldDesc.items
-      const itemWidgetInfo = inferWidget(itemDesc)
-      fieldDescriptor.itemDescriptor = {
-        key: `${key}Item`,
-        path: `${currentPath}[]`,
-        label: itemDesc.metadata?.label || `${label} Item`,
-        widget: itemWidgetInfo.widget,
-        widgetProps: itemWidgetInfo.props,
-        required: !itemDesc.optional,
-        nullable: !!itemDesc.nullable,
-        type: itemDesc.kind,
-        order: 0,
-      }
-
-      // If array items are structs, expose children for table column/row inspection
-      if (itemDesc.kind === 'struct' && itemDesc.fields) {
-        fieldDescriptor.children = getFormFields(itemDesc, `${currentPath}[]`)
-      } else if (itemDesc.kind === 'record' && itemDesc.values) {
-        // Expose nested children for record item value inspection
-        const valDesc = itemDesc.values
-        const valWidget = inferWidget(valDesc)
-        fieldDescriptor.children = [
-          {
-            key: 'value',
-            path: `${currentPath}[].value`,
-            label: valDesc.metadata?.label || 'Value',
-            widget: valWidget.widget,
-            widgetProps: valWidget.props,
-            required: !valDesc.optional,
-            nullable: !!valDesc.nullable,
-            type: valDesc.kind,
-            order: 0,
-            ...(valDesc.kind === 'struct' && valDesc.fields
-              ? { children: getFormFields(valDesc, `${currentPath}[].value`) }
-              : {}),
-          },
-        ]
-      }
-    }
-
-    fields.push(fieldDescriptor)
-  }
-
-  return fields.sort((a, b) => a.order - b.order)
 }

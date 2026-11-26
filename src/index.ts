@@ -34,7 +34,7 @@ export {
 
 // 4. Dynamic Form Builder Engine
 export { StructBuilder, type DynamicFieldOptions } from './dynamic/structBuilder'
-export { getFormFields, inferWidget, type FormFieldDescriptor } from './dynamic/formInspector'
+export { inferWidget } from './dynamic/formInspector'
 
 // 5. Interoperability Bridges
 export { toJSONSchema, fromJSONSchema } from './bridges/jsonSchema'

@@ -42,6 +42,7 @@ export type ASTExpression =
 export type ASTEvaluationContext = Record<string, unknown>
 
 import { parseExpression, extractDependencies } from './expressionParser'
+import { getAll } from '../form/paths'
 
 function itemMatches(item: unknown, target: unknown): boolean {
   if (item === target) return true
@@ -63,7 +64,32 @@ function checkContains(container: unknown, search: unknown): boolean {
   return String(container).includes(String(search ?? ''))
 }
 
+/**
+ * The values a field path reaches in every row of a list. `[]` fans out over nested lists:
+ * `pluck(warehouses, "bins[].hazard")` is the hazard flag of every bin of every warehouse.
+ */
+function pluckValues(list: unknown, path: unknown): unknown[] {
+  if (!Array.isArray(list)) return []
+  const field = String(path ?? '')
+  return field === '' ? [...list] : list.flatMap((row) => getAll(row, field))
+}
+
 const BUILTIN_FUNCTIONS: Record<string, (...args: any[]) => any> = {
+  pluck: pluckValues,
+  /** True when some value at `path` matches `value` (or is truthy when no value is given). */
+  some: (list: any, path: any, value?: any) =>
+    pluckValues(list, path).some((v) => (value === undefined ? Boolean(v) : itemMatches(v, value))),
+  /** True when every value at `path` matches `value` (or is truthy). Vacuously true for no rows. */
+  every: (list: any, path: any, value?: any) =>
+    pluckValues(list, path).every((v) => (value === undefined ? Boolean(v) : itemMatches(v, value))),
+  /** Number of rows, or of values at `path` that match `value` (or are truthy). */
+  count: (list: any, path?: any, value?: any) =>
+    path === undefined
+      ? Array.isArray(list)
+        ? list.length
+        : 0
+      : pluckValues(list, path).filter((v) => (value === undefined ? Boolean(v) : itemMatches(v, value)))
+          .length,
   floor: Math.floor,
   ceil: Math.ceil,
   round: Math.round,

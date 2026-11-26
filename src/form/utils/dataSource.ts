@@ -11,7 +11,7 @@ import type {
  */
 export function extractValueDependencies(obj: unknown): string[] {
   const deps = new Set<string>()
-  if (!obj || typeof obj !== 'object') return []
+  if (obj === undefined || obj === null) return []
 
   const visit = (val: unknown) => {
     if (typeof val === 'string') {
