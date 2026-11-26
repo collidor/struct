@@ -331,7 +331,8 @@ function onFieldChange(event: CustomEvent<{ fieldKey: string; fieldValue: unknow
           </tr>
         </thead>
         <tbody>
-          <tr><td><code>disabledWhen</code>, <code>readonlyWhen</code>, <code>hiddenWhen</code></td><td>Presentation only. The field keeps its value and still obeys its schema.</td></tr>
+          <tr><td><code>disabledWhen</code>, <code>readonlyWhen</code></td><td>Presentation only. The field keeps its value and still obeys its schema.</td></tr>
+          <tr><td><code>hidden</code>, <code>hiddenWhen</code></td><td>A hidden field takes no part in validation: it never blocks a submit and reports neither missing nor invalid data, and whatever value it holds passes through unchecked. This covers a hidden group or table too. The moment it is shown, its schema applies again.</td></tr>
           <tr><td><code>requiredWhen</code></td><td>Decides requiredness, replacing the schema's: while true an empty value is an error, while false it is accepted. Exported as optional.</td></tr>
           <tr><td><code>options</code></td><td>A list, a function, or <code>&#123; by, map, otherwise &#125;</code> that follows another field. A value outside the current choices is invalid.</td></tr>
           <tr><td><code>derive</code></td><td>An expression or function. The parsed output always holds the computed value and the field is shown read-only.</td></tr>

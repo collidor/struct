@@ -97,6 +97,7 @@ export function createFieldNode({
   // struct takes them from `f.field` instead.
   const hint = <T>(key: string, kind: 'boolean' | 'number' | 'string'): T | undefined =>
     honorDescriptorHints && typeof meta[key] === kind ? (meta[key] as T) : undefined
+  const isHidden = (options?.hidden ?? hint<boolean>('hidden', 'boolean') ?? false) || (holds(options?.hiddenWhen) ?? false)
 
   return {
     kind: 'field',
@@ -110,14 +111,17 @@ export function createFieldNode({
     widget,
     widgetProps: props,
     options: choices ?? (props.options as FormFieldNode['options']),
-    required: requiredNow ?? (options?.derive === undefined && !descriptor.optional && descriptor.default === undefined),
+    // a hidden field is never required: validation leaves it alone
+    required: isHidden
+      ? false
+      : (requiredNow ?? (options?.derive === undefined && !descriptor.optional && descriptor.default === undefined)),
     disabled: (options?.disabled ?? hint<boolean>('disabled', 'boolean') ?? false) || (holds(options?.disabledWhen) ?? false),
     // a computed value is shown, not edited
     readonly:
       (options?.readonly ?? hint<boolean>('readonly', 'boolean') ?? false) ||
       (holds(options?.readonlyWhen) ?? false) ||
       options?.derive !== undefined,
-    hidden: (options?.hidden ?? hint<boolean>('hidden', 'boolean') ?? false) || (holds(options?.hiddenWhen) ?? false),
+    hidden: isHidden,
     ...(options?.derive !== undefined ? { derivedValue: derived } : {}),
     colSpan: options?.colSpan ?? hint<number>('colSpan', 'number'),
     defaultValue: descriptor.default,

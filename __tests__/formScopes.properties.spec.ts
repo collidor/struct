@@ -835,6 +835,8 @@ describe('reactive option properties', () => {
     reason: f.field(s.string().min(2), { requiredWhen: 'flag && qty > 1' }),
     city: f.field(s.string().optional(), { options: { by: 'country', map: CITIES } }),
     total: f.field(s.number().optional(), { derive: 'qty * 2' }),
+    // exempt from validation whenever it is hidden
+    needed: f.field(s.string().min(2), { hiddenWhen: 'qty == 0' }),
   })
 
   const data = fc.record({
@@ -845,6 +847,7 @@ describe('reactive option properties', () => {
     reason: fc.option(fc.constantFrom('', 'a', 'ok'), { nil: undefined }),
     city: fc.option(fc.constantFrom('Berlin', 'Paris', 'Rome'), { nil: undefined }),
     total: fc.option(fc.integer(), { nil: undefined }),
+    needed: fc.option(fc.constantFrom('', 'a', 'ok'), { nil: undefined }),
   })
 
   it('the tree shows the flags a plain function of the values would', () => {
@@ -872,6 +875,8 @@ describe('reactive option properties', () => {
         if (required && reasonEmpty) expected.push('reason')
         // a value that is given must satisfy the schema, whether or not it is required
         else if (!reasonEmpty && v.reason!.length < 2) expected.push('reason')
+        // hidden (qty == 0): not checked at all. Otherwise it is required and must satisfy min(2)
+        if (v.qty !== 0 && (v.needed === undefined || v.needed.length < 2)) expected.push('needed')
         if (v.city !== undefined && !(CITIES[v.country] ?? []).includes(v.city)) expected.push('city')
         expect(issues).toEqual(expected.sort())
       }),

@@ -124,8 +124,9 @@ export class FormStructSchema<
       const schema = isFormField(item) ? item.schema : item
       if (schema instanceof BaseSchema) {
         const opts = isFormField(item) ? item.options : undefined
-        // `requiredWhen` and `derive` decide presence themselves, so a plain descriptor cannot demand it
-        const decidesItself = opts?.requiredWhen !== undefined || opts?.derive !== undefined
+        // `requiredWhen`, `derive` and hiding decide presence themselves, so a plain descriptor cannot demand it
+        const decidesItself =
+          opts?.requiredWhen !== undefined || opts?.derive !== undefined || opts?.hidden === true || opts?.hiddenWhen !== undefined
         out[key] = conditional || decidesItself ? { ...schema.descriptor, optional: true } : schema.descriptor
       }
     }
@@ -198,8 +199,8 @@ export class FormStructSchema<
   }
 
   /**
-   * The field options that change what a value means: `derive` replaces it, `requiredWhen` decides
-   * whether empty is acceptable. Returns what to do instead of running the schema, or `undefined`
+   * The field options that change what a value means: `derive` replaces it, `hidden` exempts it,
+   * `requiredWhen` decides whether empty is acceptable. Returns what to do instead of running the schema, or `undefined`
    * to validate normally.
    */
   private _gate(
@@ -211,6 +212,12 @@ export class FormStructSchema<
     if (!options) return undefined
     const context = this._conditionContext(valObj)
     if (options.derive !== undefined) return { value: evaluateDerive(options.derive, valObj, context) }
+    // A hidden field takes no part in validation: it cannot block a submit, and it reports neither
+    // missing nor invalid data (the user cannot see it to fix it). Whatever value it holds passes
+    // through untouched, and it is simply absent when it holds nothing.
+    if (options.hidden === true || (options.hiddenWhen !== undefined && evaluateCondition(options.hiddenWhen, valObj, context))) {
+      return { value: valObj[key] }
+    }
     if (options.requiredWhen !== undefined && isBlank(valObj[key])) {
       return evaluateCondition(options.requiredWhen, valObj, context)
         ? { issue: { path: [...path, key], message: `Field "${key}" is required`, code: 'required' } }

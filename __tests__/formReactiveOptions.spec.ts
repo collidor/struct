@@ -292,3 +292,105 @@ describe('layout state in the controller', () => {
     expect(c.getState().openPanels).toEqual({ [acc]: { second: true, first: false } })
   })
 })
+
+describe('hidden fields take no part in validation', () => {
+  const paths = (result: { issues?: Array<{ path?: ReadonlyArray<unknown> }> }) =>
+    (result.issues ?? []).map((i) => i.path?.join('.'))
+
+  it('a hidden field that is required and empty does not block, and is absent from the output', () => {
+    const form = f.struct({
+      name: s.string(),
+      internal: f.field(s.string().min(3), { hidden: true }),
+    })
+    expect(form.safeParse({ name: 'a' }).success).toBe(true)
+    expect(form.parse({ name: 'a' })).toEqual({ name: 'a' })
+  })
+
+  it('a hidden field with an invalid value does not block either, and its value passes through', () => {
+    const form = f.struct({ name: s.string(), internal: f.field(s.string().min(3), { hidden: true }) })
+    const result = form.safeParse({ name: 'a', internal: 'x' })
+    expect(result.success).toBe(true)
+    expect(result.data).toEqual({ name: 'a', internal: 'x' })
+    // a value of the wrong type is not reported either
+    expect(form.safeParse({ name: 'a', internal: 42 }).success).toBe(true)
+  })
+
+  it('follows hiddenWhen: exempt while hidden, enforced again the moment it is shown', () => {
+    const form = f.struct({
+      plan: s.string(),
+      coupon: f.field(s.string().min(3), { hiddenWhen: 'plan == "free"' }),
+    })
+    expect(form.safeParse({ plan: 'free' }).success).toBe(true)
+    expect(form.safeParse({ plan: 'free', coupon: 'x' }).success).toBe(true)
+    expect(paths(form.safeParse({ plan: 'pro' }))).toEqual(['coupon'])
+    expect(paths(form.safeParse({ plan: 'pro', coupon: 'x' }))).toEqual(['coupon'])
+    expect(form.safeParse({ plan: 'pro', coupon: 'abc' }).success).toBe(true)
+  })
+
+  it('hiding wins over requiredWhen, options and the schema', () => {
+    const form = f.struct({
+      on: s.boolean(),
+      a: f.field(s.string(), { hidden: true, requiredWhen: 'on' }),
+      b: f.field(s.string(), { hiddenWhen: 'on', options: ['x'] }),
+    })
+    expect(form.safeParse({ on: true, b: 'not-an-option' }).success).toBe(true)
+    expect(paths(form.safeParse({ on: false, b: 'not-an-option' }))).toEqual(['b'])
+  })
+
+  it('exempts a hidden group and a hidden table with bad rows', () => {
+    const form = f.struct({
+      show: s.boolean(),
+      address: f.field(f.struct({ street: s.string().min(5) }), { hiddenWhen: '!show' }),
+      rows: f.field(s.array(f.struct({ ref: s.string().min(2) })), { widget: f.table(), hiddenWhen: '!show' }),
+    })
+    expect(form.safeParse({ show: false, address: { street: 'x' }, rows: [{ ref: '' }] }).success).toBe(true)
+    expect(paths(form.safeParse({ show: true, address: { street: 'x' }, rows: [{ ref: '' }] })).sort()).toEqual([
+      'address.street',
+      'rows.0.ref',
+    ])
+  })
+
+  it('is judged per row', () => {
+    const form = f.struct({
+      rows: s.array(f.struct({ auto: s.boolean(), ref: f.field(s.string().min(2), { hiddenWhen: 'auto' }) })),
+    })
+    const result = form.safeParse({ rows: [{ auto: true }, { auto: false }, { auto: false, ref: 'ok' }] })
+    expect(paths(result)).toEqual(['rows.1.ref'])
+  })
+
+  it('still computes a derived value that is hidden', () => {
+    const form = f.struct({ qty: s.number(), total: f.field(s.number(), { derive: 'qty * 2', hidden: true }) })
+    expect(form.parse({ qty: 4 })).toEqual({ qty: 4, total: 8 })
+  })
+
+  it('shows in the tree as hidden and not required', () => {
+    const form = f.struct({ x: f.field(s.string(), { hidden: true }), y: f.field(s.string(), { hiddenWhen: 'false' }) })
+    const { fieldsByKey: n } = form.toFormTree({})
+    expect(n.x).toMatchObject({ hidden: true, required: false })
+    expect(n.y).toMatchObject({ hidden: false, required: true })
+  })
+
+  it('exports as optional, since a plain descriptor cannot say "required unless hidden"', () => {
+    const form = f.struct({ a: s.string(), b: f.field(s.string(), { hidden: true }), c: f.field(s.string(), { hiddenWhen: 'a' }) })
+    expect((toJSONSchema(form.descriptor) as any).required).toEqual(['a'])
+  })
+
+  it('agrees asynchronously', async () => {
+    const form = f.struct({ x: f.field(s.string().min(3), { hidden: true }), y: s.string() })
+    expect((await form.safeParseAsync({ y: 'a' })).success).toBe(true)
+    expect((await form.safeParseAsync({ y: 'a', x: 'x' })).data).toEqual({ y: 'a', x: 'x' })
+  })
+
+  it('never blocks a wizard step', () => {
+    const form = f.struct({
+      wizard: f.steps({
+        one: f.section('One', { a: s.string(), secret: f.field(s.string().min(5), { hidden: true }) }),
+        two: f.section('Two', { b: s.string() }),
+      }),
+    })
+    const c = f.createController(form, { initialValues: { a: 'x' } })
+    const id = (c.getTree().nodes[0] as any).id
+    expect(c.setStep(1, id)).toBe(true)
+    expect(c.getErrors()).toEqual({})
+  })
+})
